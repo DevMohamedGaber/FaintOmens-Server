@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 48a39b84333b52847907c199c3250e19, type: 3}
+  m_Name: 1
+  m_EditorClassIdentifier: 
+  ActivateItemId: 7006
+  prefab: {fileID: 3843351391357790001, guid: 150c91d17cb27394fa9ab4caf374d8c7, type: 3}
+  classType: 0
+  maxTire: 5
+  health:
+    baseValue: 100
+    bonusPerLevel: 0
+  mana:
+    baseValue: 100
+    bonusPerLevel: 0
+  pAtk:
+    baseValue: 5
+    bonusPerLevel: 0
+  pDef:
+    baseValue: 1
+    bonusPerLevel: 0
+  mAtk:
+    baseValue: 5
+    bonusPerLevel: 0
+  mDef:
+    baseValue: 1
+    bonusPerLevel: 0
+  block:
+    baseValue: 0
+    bonusPerLevel: 0
+  untiBlock:
+    baseValue: 0
+    bonusPerLevel: 0
+  crit:
+    baseValue: 0
+    bonusPerLevel: 0
+  critDmg:
+    baseValue: 0
+    bonusPerLevel: 0
+  untiCrit:
+    baseValue: 0
+    bonusPerLevel: 0

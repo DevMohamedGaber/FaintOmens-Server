@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5e4701de7589bbc4abc76b4ee6c1de67, type: 3}
+  m_Name: 1
+  m_EditorClassIdentifier: 
+  prefab: {fileID: 110258, guid: 624407a67304fd84ca5e135bc079e50d, type: 3}
+  subs:
+  - reqLevel: 0
+    reqBR: 0
+    reqMilitaryRank: 0
+    UpgradeItems: []
+    startQuest: {fileID: 0}
+    hp:
+      multiplier: 0
+      baseValue: 1
+    mp:
+      multiplier: 0
+      baseValue: 1
+    pAtk:
+      multiplier: 0
+      baseValue: 1
+    pDef:
+      multiplier: 0
+      baseValue: 1
+    mAtk:
+      multiplier: 0
+      baseValue: 1
+    mDef:
+      multiplier: 0
+      baseValue: 1
+    block:
+      multiplier: 0
+      baseValue: 1
+    untiBlock:
+      multiplier: 0
+      baseValue: 1
+    crit:
+      multiplier: 0
+      baseValue: 1
+    critDmg:
+      multiplier: 0
+      baseValue: 1
+    untiCrit:
+      multiplier: 0
+      baseValue: 1
+  defaultEquipments: []

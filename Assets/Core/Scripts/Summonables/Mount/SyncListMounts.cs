@@ -1,0 +1,18 @@
+namespace Game
+{
+    public class SyncListMounts : Mirror.SyncList<Mount>
+    {
+        public bool Has(ushort id)
+        {
+            if(Count > 0)
+            {
+                for(int i = 0; i < Count; i++)
+                {
+                    if(objects[i].id == id)
+                        return true;
+                }
+            }
+            return false;
+        }
+    }
+}

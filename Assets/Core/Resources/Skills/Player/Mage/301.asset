@@ -1,0 +1,72 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 389790c1e073c435695f4fc188184a2b, type: 3}
+  m_Name: 301
+  m_EditorClassIdentifier: 
+  followupDefaultAttack: 0
+  learnDefault: 1
+  cancelCastIfTargetDied: 0
+  predecessor: {fileID: 0}
+  predecessorLevel: 1
+  requiredWeaponCategory: 
+  requiredLevel:
+    baseValue: 0
+    bonusPerLevel: 0
+  requiredSkillExperience: 
+  maxLevel: 1
+  manaCosts:
+    baseValue: 0
+    bonusPerLevel: 0
+  castTime:
+    baseValue: 3
+    bonusPerLevel: 0
+  cooldown:
+    baseValue: 1
+    bonusPerLevel: 0
+  castRange:
+    baseValue: 0
+    bonusPerLevel: 0
+  id: 301
+  healthMaxBonus:
+    baseValue: 0
+    bonusPerLevel: 0
+  manaMaxBonus:
+    baseValue: 0
+    bonusPerLevel: 0
+  damageBonus:
+    baseValue: 0
+    bonusPerLevel: 0
+  defenseBonus:
+    baseValue: 0
+    bonusPerLevel: 0
+  blockChanceBonus:
+    baseValue: 0
+    bonusPerLevel: 0
+  criticalChanceBonus:
+    baseValue: 0
+    bonusPerLevel: 0
+  healthPercentPerSecondBonus:
+    baseValue: 0
+    bonusPerLevel: 0
+  manaPercentPerSecondBonus:
+    baseValue: 0
+    bonusPerLevel: 0
+  speedBonus:
+    baseValue: 0
+    bonusPerLevel: 0
+  buffTime:
+    baseValue: 60
+    bonusPerLevel: 0
+  remainAfterDeath: 0
+  canBuffSelf: 1
+  canBuffOthers: 0
+  canBuffEnemies: 0
