@@ -495,7 +495,7 @@ namespace Game
         }
         public uint SumTribeTotalBR(byte id)
         {
-            uint sum = connection.ExecuteScalar<uint>("SELECT SUM(br) FROM characters WHERE tribeId=?", id);
+            uint sum = connection.ExecuteScalar<uint>("SELECT SUM(br) FROM Characters WHERE tribeId=?", id);
             return sum > 0 ? sum : 0;
         }
     #endregion

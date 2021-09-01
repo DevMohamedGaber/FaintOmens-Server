@@ -12,7 +12,10 @@ namespace Game.ControlPanel
         public void ClearLobby()
         {
             if(manager.lobby.Count > 0)
+            {
                 manager.lobby.Clear();
+                lobbyCount.text = "0";
+            }
         }
         public void UpdateOnlineCount()
         {
