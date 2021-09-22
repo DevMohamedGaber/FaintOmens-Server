@@ -181,6 +181,7 @@ namespace Game.Network
                     lobby[conn] = player.accId;
                     var msg = await Database.singleton.LoadAvailableCharacters(player.accId);
                     conn.Send(msg);
+                    UIManager.data.homePage.UpdateLobbyCount();
                 }
             }
         }
@@ -202,9 +203,14 @@ namespace Game.Network
             if (conn.identity != null)
             {
                 Database.singleton.CharacterLogOff(conn.identity.GetComponent<Player>());
+                UIManager.data.homePage.UpdateOnlineCount();
                 print("logedOff: " + conn.identity.name);
             }
-            lobby.Remove(conn);
+            else 
+            {
+                lobby.Remove(conn);
+                UIManager.data.homePage.UpdateLobbyCount();
+            }
             base.OnServerDisconnect(conn);
         }
         void SavePlayers()
