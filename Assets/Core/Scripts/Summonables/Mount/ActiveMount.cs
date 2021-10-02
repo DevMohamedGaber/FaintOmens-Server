@@ -8,7 +8,7 @@ namespace Game
 
         public bool canMount => id > 0;
 
-        public ActiveMount(ushort id)
+        public ActiveMount(ushort id = 0)
         {
             this.id = id;
             this.mounted = false;

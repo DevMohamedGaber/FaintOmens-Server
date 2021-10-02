@@ -109,4 +109,14 @@ namespace Game
             return Convert.ToUInt32(multiplier * Mathf.Pow(baseValue, (level - 1)));
         }
     }
+    [Serializable]
+    public struct ExponentialUShort
+    {
+        public ushort multiplier;
+        public float baseValue;
+        public ushort Get(int level)
+        {
+            return Convert.ToUInt16(multiplier * Mathf.Pow(baseValue, (level - 1)));
+        }
+    }
 }

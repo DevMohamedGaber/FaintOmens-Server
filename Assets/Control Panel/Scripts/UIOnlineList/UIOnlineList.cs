@@ -3,11 +3,10 @@ namespace Game.ControlPanel
 {
     public class UIOnlineList : MonoBehaviour
     {
-        [SerializeField] float updateInterval = 5f;
         [SerializeField] TMPro.TMP_Text counter;
         [SerializeField] GameObject prefab;
         [SerializeField] Transform content;
-        void UpdateData()
+        public void Refresh()
         {
             counter.text = Player.onlinePlayers.Count.ToString();
             UIUtils.BalancePrefabs(prefab, Player.onlinePlayers.Count, content);
@@ -27,7 +26,7 @@ namespace Game.ControlPanel
                         }
                         else
                         {
-                            UpdateData();
+                            Refresh();
                         }
                     });
                     i++;
@@ -36,11 +35,7 @@ namespace Game.ControlPanel
         }
         void OnEnable()
         {
-            InvokeRepeating("UpdateData", 0, updateInterval);
-        }
-        void OnDisable()
-        {
-            CancelInvoke("UpdateData");
+            Refresh();
         }
     }
 }

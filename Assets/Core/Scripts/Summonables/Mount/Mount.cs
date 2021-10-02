@@ -6,27 +6,51 @@ namespace Game
     {
         public ushort id;
         public SummonableStatus status;
-        public byte level;
+        public byte _level;
         public uint experience;
         public Tier tier;
-        public byte stars;
+        public byte _stars;
         public ushort vitality;
         public ushort intelligence;
         public ushort endurance;
         public ushort strength;
-        public uint expMax => Storage.data.mount.expMax.Get(level);
+        public MountTraining training;
+        public uint expMax => Storage.data.mount.expMax[level - 1];
+        public int level
+        {
+            set
+            {
+                _level = (byte)value;
+            }
+            get
+            {
+                return (int)_level;
+            }
+        }
+        public int stars
+        {
+            set
+            {
+                _stars = (byte)value;
+            }
+            get
+            {
+                return (int)_stars;
+            }
+        }
         public Mount(ushort id)
         {
             this.id = id;
             this.status = SummonableStatus.Saved;
-            this.level = 1;
+            this._level = 1;
             this.experience = 0;
-            this.stars = 0;
+            this._stars = 0;
             this.tier = Tier.F;
             this.vitality = 0;
             this.intelligence = 0;
             this.endurance = 0;
             this.strength = 0;
+            this.training = new MountTraining();
         }
         public void Feed(uint exp)
         {

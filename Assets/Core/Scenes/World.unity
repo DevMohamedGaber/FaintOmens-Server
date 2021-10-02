@@ -1073,17 +1073,24 @@ MonoBehaviour:
     upgradeItemsCount: 
     feeds: []
   mount:
-    lvlCap: 0
-    expMax:
-      multiplier: 0
-      baseValue: 0
+    lvlCap: 100
+    expMaxRate:
+      multiplier: 200
+      baseValue: 1.15
+    trainingExpMaxRate:
+      multiplier: 50
+      baseValue: 1.05
+    trainingExpPerItem: 0
     expShare: 0
-    starsCap: 0
+    starsCap: 10
     pointPerLvl: 0
     starsUpItemId: 0
     upgradeItemId: 0
+    trainItemId: 0
     starUpItemsCount: 
     upgradeItemsCount: 
+    expMax: 
+    trainingExpMax: 
     feeds: []
   arena:
     minLvl: 0
@@ -1457,7 +1464,7 @@ MonoBehaviour:
   spawnPrefabs:
   - {fileID: 110258, guid: 624407a67304fd84ca5e135bc079e50d, type: 3}
   characterLimit: 4
-  saveInterval: 60
+  saveInterval: 600
 --- !u!1001 &1535727616206808843
 PrefabInstance:
   m_ObjectHideFlags: 0

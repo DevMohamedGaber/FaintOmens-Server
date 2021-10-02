@@ -6,7 +6,6 @@ namespace Game.Components
     public class PlayerSpawnArea : MonoBehaviour
     {
         int minX, maxX, minY, minZ, maxZ;
-        System.Random rand => Utils.random;
         public Vector3 GetValidRandomPosition()
         {
             Vector3 result = GetRandomPoisition();
@@ -21,9 +20,9 @@ namespace Game.Components
         Vector3 GetRandomPoisition()
         {
             return new Vector3 (
-                (float)rand.Next(minX, maxX), // random x value
+                (float)Utils.random.Next(minX, maxX), // random x value
                 minY, // the same level on y
-                (float)rand.Next(minZ, maxZ) // random z value
+                (float)Utils.random.Next(minZ, maxZ) // random z value
             );
         }
         bool IsOverlaping(Vector3 pos)

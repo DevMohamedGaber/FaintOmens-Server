@@ -88,7 +88,7 @@ namespace Game
                     await SetCharacterData(player, row);
                     // set place in world
                     player.Warp(new Vector3(row.x, row.y, row.z));
-                    StartCoroutine(player.CheckUps(row.lastsaved));
+                    //StartCoroutine(player.CheckUps(row.lastsaved));
                     
                     return go;
                 } else Debug.LogError("no prefab found for class: " + row.classType.ToString());
@@ -856,7 +856,6 @@ namespace Game
             if(table.Count < 1)
                 return;
             
-            int activeIndex = -1;
             for(int i = 0; i < table.Count; i++)
             {
                 player.own.mounts.Add(new Mount
@@ -870,13 +869,21 @@ namespace Game
                     intelligence = table[i].intelligence,
                     endurance = table[i].endurance,
                     strength = table[i].strength,
-                    status = activeId > 0 && table[i].id == activeId ? SummonableStatus.Deployed : SummonableStatus.Saved
+                    status = activeId > 0 && table[i].id == activeId ? SummonableStatus.Deployed : SummonableStatus.Saved,
+                    training = new MountTraining
+                    {
+                        vitality = new MountTrainingAttribute(table[i].vitalityLevel, table[i].vitalityExp),
+                        strength = new MountTrainingAttribute(table[i].strengthLevel, table[i].strengthExp),
+                        intelligence = new MountTrainingAttribute(table[i].intelligenceLevel, table[i].intelligenceExp),
+                        endurance = new MountTrainingAttribute(table[i].enduranceLevel, table[i].enduranceExp)
+                    }
                 });
 
-                if(activeId > 0 && activeIndex == -1 && table[i].id == activeId)
-                    activeIndex = i;
+                if(activeId > 0 && table[i].id == activeId)
+                {
+                    player.mount.id = activeId;
+                }
             }
-            player.mount = new ActiveMount(activeIndex != -1 ? table[activeIndex].id : (ushort)0);
         }
         public void SaveMounts(Player player)
         {
@@ -889,15 +896,23 @@ namespace Game
                 {
                     id = mount.id,
                     owner = player.id,
-                    level = mount.level,
+                    level = mount._level,
                     experience = mount.experience,
-                    stars = mount.stars,
+                    stars = mount._stars,
                     tier = mount.tier,
                     vitality = mount.vitality,
                     strength = mount.strength,
                     intelligence = mount.intelligence,
                     endurance = mount.endurance,
-                    br = mount.battlepower
+                    br = mount.battlepower,
+                    vitalityLevel = mount.training.vitality._level,
+                    vitalityExp = mount.training.vitality.exp,
+                    strengthLevel = mount.training.strength._level,
+                    strengthExp = mount.training.strength.exp,
+                    intelligenceLevel = mount.training.intelligence._level,
+                    intelligenceExp = mount.training.intelligence.exp,
+                    enduranceLevel = mount.training.endurance._level,
+                    enduranceExp = mount.training.endurance.exp,
                 });
             }
         }

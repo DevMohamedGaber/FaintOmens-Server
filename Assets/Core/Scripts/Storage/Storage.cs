@@ -74,11 +74,13 @@ namespace Game
             List<ScriptableQuest> quest = dailyQuests.Where(q => q.requiredLevel <= level).ToList();
             return new Quest(quest[new System.Random().Next(0, quest.Count - 1)]);
         }
-        void Awake() {
+        void Awake()
+        {
             data = this;
             player.OnAwake();
             item.OnAwake();
             guild.OnAwake();
+            mount.OnAwake();
         }
     }
     [Serializable] public class MallItemsCategory {

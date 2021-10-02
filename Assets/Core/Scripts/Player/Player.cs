@@ -37,7 +37,7 @@ namespace Game
         [SyncVar] public uint teamId = 0;
         [SyncVar] public ushort activeTitle = 0;
         [SyncVar] public bool showWardrop = true;
-        [SyncVar] public ActiveMount mount;
+        [SyncVar] public ActiveMount mount = new ActiveMount();
         [SyncVar] GameObject _nextTarget;
         public Entity nextTarget {
             get => _nextTarget != null  ? _nextTarget.GetComponent<Entity>() : null;
@@ -474,10 +474,8 @@ namespace Game
         }
     #endregion //Basic Functions
     #region General Server Functions
-        protected override void Start() {
-            // do nothing if not spawned (=for character selection previews)
-            if (!isServer && !isClient) return;
-
+        protected override void Start()
+        {
             base.Start();
             onlinePlayers[id] = this;
             growthEquips = new List<int>();
@@ -1668,7 +1666,7 @@ namespace Game
                     amount += (uint)slot.amount;
             return amount;
         }
-        public bool InventoryRemove(int itemId, uint amount) {
+        public bool InventoryRemove(int itemId, uint amount = 1) {
             for (int i = 0; i < own.inventory.Count; ++i) {
                 ItemSlot slot = own.inventory[i];
                 if (slot.amount > 0 && slot.item.id == itemId) {
@@ -2361,30 +2359,85 @@ namespace Game
         }
     #endregion
     #region Mount
-        public bool IsMounted() => mount.canMount && mount.mounted;
-        [Command] public void CmdMountActivate(ushort itemName) => MountSystem.Activate(this, itemName);
-        [Command] public void CmdMountDeploy(ushort mountId) => MountSystem.Deploy(this, mountId);
-        [Command] public void CmdMountRecall() => MountSystem.Recall(this);
-        [Command] public void CmdMountFeedx1(ushort mountId, ushort selectedFeed) => MountSystem.Feed(this, mountId, selectedFeed, 1u);
-        [Command] public void CmdMountFeedx10(ushort mountId, ushort selectedFeed) => MountSystem.Feed(this, mountId, selectedFeed, 10u);
-        [Command] public void CmdMountUpgrade(ushort mountId) => MountSystem.Upgrade(this, mountId);
-        [Command] public void CmdMountStarUp(ushort mountId) => MountSystem.StarUp(this, mountId);
-        [Command] public void CmdMountSummon() {
-            if(mount.canMount) {
+        public bool IsMounted()
+        {
+            return mount.canMount && mount.mounted;
+        }
+        [Command]
+        public void CmdMountActivate(ushort itemName)
+        {
+            MountSystem.Activate(this, itemName);
+        }
+        [Command]
+        public void CmdMountDeploy(ushort mountId)
+        {
+            MountSystem.Deploy(this, mountId);
+        }
+        [Command]
+        public void CmdMountRecall()
+        {
+            MountSystem.Recall(this);
+        }
+        [Command]
+        public void CmdMountFeedx1(ushort mountId, ushort selectedFeed)
+        {
+            MountSystem.Feed(this, mountId, selectedFeed, 1u);
+        }
+        [Command]
+        public void CmdMountFeedx10(ushort mountId, ushort selectedFeed)
+        {
+            MountSystem.Feed(this, mountId, selectedFeed, 10u);
+        }
+        [Command]
+        public void CmdMountUpgrade(ushort mountId)
+        {
+            MountSystem.Upgrade(this, mountId);
+        }
+        [Command]
+        public void CmdMountStarUp(ushort mountId)
+        {
+            MountSystem.StarUp(this, mountId);
+        }
+        [Command]
+        public void CmdMountTrain(ushort mountId, byte type)
+        {
+            MountSystem.Train(this, mountId, type);
+        }
+        [Command]
+        public void CmdMountTrainx10(ushort mountId, byte type)
+        {
+            MountSystem.Train(this, mountId, type, 10);
+        }
+        [Command] public void CmdMountSummon()
+        {
+            if(mount.canMount)
+            {
                 ActiveMount info = mount;
                 info.mounted = true;
                 mount = info;
             }
-            else Notify("Select a mount first", "اختر راكب اولا");
+            else
+            {
+                Notify("Select a mount first", "اختر راكب اولا");
+            }
         }
-        [Command] public void CmdMountUnsummon() => MountUnsummon();
-        void MountUnsummon() {
-            if(mount.canMount) {
+        [Command]
+        public void CmdMountUnsummon()
+        {
+            MountUnsummon();
+        }
+        void MountUnsummon()
+        {
+            if(mount.canMount)
+            {
                 ActiveMount info = mount;
                 info.mounted = false;
                 mount = info;
             }
-            else Notify("Select a mount first", "اختر راكب اولا");
+            else
+            {
+                Notify("Select a mount first", "اختر راكب اولا");
+            }
         }
     #endregion
     #region Auto Fight
