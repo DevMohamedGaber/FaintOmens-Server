@@ -14,14 +14,16 @@ namespace Game
         public LinearInt mp;
         public LinearInt atk;
         public LinearInt def;
-        public static bool HasWardropItem(SyncListWardrop wardropList, short itemId)
+        public static bool HasWardropItem(SyncListClothing wardropList, short itemId)
         {
             if(wardropList.Count > 0)
             {
                 for(int i = 0; i < wardropList.Count; i++)
                 {
                     if(wardropList[i].id == itemId)
+                    {
                         return true;
+                    }
                 }
             }
             return false;

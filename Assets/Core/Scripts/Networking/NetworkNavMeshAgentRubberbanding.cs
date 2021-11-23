@@ -134,7 +134,7 @@ namespace Game.Network
             writer.WriteVector3(transform.position);
 
             // always send speed in case it's modified by something
-            writer.WriteSingle(agent.speed);
+            writer.WriteFloat(agent.speed);
 
             // note: we don't send stopping distance because we always use '0' here
             // (because we always send the latest position every sendInterval)
@@ -147,7 +147,7 @@ namespace Game.Network
             // read position, speed, movement type in any case, so that we read
             // exactly what we write
             Vector3 position = reader.ReadVector3();
-            float speed = reader.ReadSingle();
+            float speed = reader.ReadFloat();
 
             // we can only apply the position if the agent is on the navmesh
             // (might not be while falling from the sky after joining, etc.)

@@ -15,10 +15,10 @@ namespace Game
         public int mAtk => sub.mAtk.Get(rank);
         public int mDef => sub.mDef.Get(rank);
         public float block => sub.block.Get(rank);
-        public float untiBlock => sub.untiBlock.Get(rank);
-        public float crit => sub.crit.Get(rank);
+        public float antiBlock => sub.untiBlock.Get(rank);
+        public float critRate => sub.crit.Get(rank);
         public float critDmg => sub.critDmg.Get(rank);
-        public float untiCrit => sub.untiCrit.Get(rank);
+        public float antiCrit => sub.untiCrit.Get(rank);
         public PlayerClassData(PlayerClass type, byte rank)
         {
             this.type = type;

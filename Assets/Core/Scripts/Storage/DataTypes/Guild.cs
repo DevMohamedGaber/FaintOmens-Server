@@ -1,3 +1,4 @@
+using UnityEngine;
 namespace Game.StorageData
 {
     [System.Serializable]
@@ -22,6 +23,9 @@ namespace Game.StorageData
         public GuildRank promoteMinRank;
         public GuildRank recallMinRank;
         public GuildRank notifyMinRank;
+        [Header("Skills")]
+        public float blockSkillPerLvl;
+        public float critRateSkillPerLvl;
         public void OnAwake()
         {
             expMax = new uint[maxLevel];

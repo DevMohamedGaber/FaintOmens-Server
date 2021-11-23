@@ -15,17 +15,17 @@ namespace Game
         public static TribeRank PromoteMinRank = TribeRank.King; // includes Demote
         public static TribeRank RecallMinRank = TribeRank.Royalty; // call players to where he/she stands
 
-        static void BroadcastChanges(byte id, Tribe tribe)
+        /*static void BroadcastChanges(byte id, Tribe tribe)
         {
             for(int i = 0; i < OnlineTribesMembers[id].Count; i++)
             {
                 if(Player.onlinePlayers.TryGetValue(OnlineTribesMembers[id][i], out Player player))
                 {
-                    player.own.tribe = tribe;
+                    player.tribe = tribe;
                 }
             }
             tribes[id] = tribe;
-        }
+        }*/
         public static bool ValidateId(byte tribeId)
         {
             for(int i = 0; i < tribesIds.Length; i++)
@@ -39,8 +39,8 @@ namespace Game
         {
             if(player.own.tribeRank >= RecallMinRank)
             {
-                TribeRecallRequest req = new TribeRecallRequest(player.name, player.cityId, player.transform.position);
-                int minLvl = Storage.data.cities[player.cityId].minLvl;
+                TribeRecallRequest req = new TribeRecallRequest(player.name, player.own.cityId, player.transform.position);
+                int minLvl = Storage.data.cities[player.own.cityId].minLvl;
                 List<Player> members = Player.onlinePlayers.Values.Where(p => p.tribeId == player.tribeId && p.level >= minLvl).ToList();
                 //for(int i = 0; i < members.Count; i++) Player.onlinePlayers[members[i].id].tribeRecallRequest = req;
                 return true;

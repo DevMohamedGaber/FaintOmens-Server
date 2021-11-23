@@ -34,7 +34,7 @@ namespace Game
                 player.Notify("Unmatched Class", "تخصص غير مناسب");
                 return false;
             }
-            if(player.gender != gender)
+            if(player.model.gender != gender)
             {
                 player.Notify("Unmatched Gender", "النوع غير مناسب");
                 return false;

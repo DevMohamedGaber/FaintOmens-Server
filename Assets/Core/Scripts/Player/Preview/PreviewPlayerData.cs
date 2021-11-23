@@ -31,5 +31,6 @@ namespace Game
         public float speed;
         public Item[] equipments;
         public Item[] accessories;
+        public PlayerModelData model;
     }
 }

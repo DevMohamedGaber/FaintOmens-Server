@@ -6,8 +6,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using SQLite; // from https://github.com/praeclarum/sqlite-net
 using System.Linq;
-using UnityEngine.AI;
-//using Game.Components;
 using Game.DatabaseModels;
 using nm = Game.Network.Messages;
 /*
@@ -30,7 +28,7 @@ namespace Game
         public async Task<nm.CharactersAvailable> LoadAvailableCharacters(ulong accId)
         {
             nm.CharactersAvailable message = new nm.CharactersAvailable();
-            List<Characters> table = connection.Query<Characters>("SELECT id, name, classType, classRank, gender, avatar, level, tribeId, showWardrobe FROM Characters WHERE accId=?", accId);
+            List<Characters> table = connection.Query<Characters>("SELECT id, name, classType, classRank, gender, avatar, level, tribeId, showClothing FROM Characters WHERE accId=?", accId);
             if(table.Count > 0)
             {
                 message.characters = new nm.CharactersAvailable.CharacterPreview[table.Count];
@@ -43,33 +41,47 @@ namespace Game
                         message.characters[i].id = table[i].id.Value;
                         message.characters[i].name = table[i].name;
                         message.characters[i].classInfo = new PlayerClassData(table[i].classType, table[i].classRank);
-                        message.characters[i].gender = table[i].gender;
                         message.characters[i].level = table[i].level;
                         message.characters[i].tribeId = table[i].tribeId;
                         message.characters[i].avatar = table[i].avatar;
-                        message.characters[i].showWardrobe = table[i].showWardrobe;
-
-                        // clothing
-                        message.characters[i].wardrobe = new ushort[4];
-                        if(table[i].showWardrobe)
+                        message.characters[i].model = new PlayerModelData();
+                        message.characters[i].model.gender = table[i].gender;
+                        if(table[i].showClothing)
                         {
                             List<Clothing> clothing = connection.Query<Clothing>("SELECT id FROM Clothing WHERE owner=?", table[i].id.Value);
                             if(clothing.Count > 0)
                             {
                                 for(int c = 0; c < clothing.Count; c++)
-                                    message.characters[i].wardrobe[(int)ScriptableWardrobe.dict[clothing[c].id].category] = clothing[c].id;
+                                {
+                                    message.characters[i].model.AddTo(ScriptableWardrobe.dict[clothing[c].id].category, clothing[c].id);
+                                }
+                            }
+                            if(message.characters[i].model.body.id == 0)
+                            {
+                                Equipments armorEquip = connection.FindWithQuery<Equipments>("SELECT id, quality FROM Equipments WHERE owner=? AND slot=?", table[i].id.Value, (int)EquipmentsCategory.Armor);
+                                if(armorEquip != null)
+                                {
+                                    message.characters[i].model.AddTo(EquipmentsCategory.Armor, armorEquip.id, armorEquip.quality);
+                                }
+                            }
+                            if(message.characters[i].model.weapon.id == 0)
+                            {
+                                Equipments weaponEquip = connection.FindWithQuery<Equipments>("SELECT id, quality FROM Equipments WHERE owner=? AND slot=?", table[i].id.Value, (int)EquipmentsCategory.Weapon);
+                                if(weaponEquip != null)
+                                {
+                                    message.characters[i].model.AddTo(EquipmentsCategory.Weapon, weaponEquip.id, weaponEquip.quality);
+                                }
                             }
                         }
-                        // equipment
-                        message.characters[i].equipment = new EquipmentPreview[2];
-                        List<Equipments> equips = connection.Query<Equipments>("SELECT id, quality, slot FROM Equipments WHERE owner=? AND slot=? OR slot=?", table[i].id.Value, (int)EquipmentsCategory.Weapon, (int)EquipmentsCategory.Armor);
-                        if(equips.Count > 0)
+                        else
                         {
-                            for(int e = 0; e < equips.Count; e++)
+                            List<Equipments> equips = connection.Query<Equipments>("SELECT id, quality FROM Equipments WHERE owner=? AND slot=? OR slot=?", table[i].id.Value, (int)EquipmentsCategory.Weapon, (int)EquipmentsCategory.Armor);
+                            if(equips.Count > 0)
                             {
-                                int slot = equips[e].slot == (int)EquipmentsCategory.Armor ? 0 : 1;
-                                message.characters[i].equipment[slot].id = equips[e].id;
-                                message.characters[i].equipment[slot].quality = equips[e].quality;
+                                for(int e = 0; e < equips.Count; e++)
+                                {
+                                    message.characters[i].model.AddTo(((EquipmentItem)ScriptableItem.dict[equips[i].id]).category, equips[i].id, equips[i].quality);
+                                }
                             }
                         }
                     }));
@@ -78,41 +90,51 @@ namespace Game
             }
             return message;
         }
-        public async Task<GameObject> CharacterLoad(uint characterId, ulong accId)
+        public async Task<bool> CharacterLoad(uint characterId, ulong accId, Player player)
         {
-            Characters row = connection.FindWithQuery<Characters>("SELECT * FROM Characters WHERE id=? AND accId=?", characterId, accId);
-            if(row != null) {
-                if(ScriptableClass.dict.ContainsKey(row.classType)) {
-                    GameObject go = Instantiate(ScriptableClass.dict[row.classType].prefab);
-                    Player player = go.GetComponent<Player>();
-                    await SetCharacterData(player, row);
-                    // set place in world
-                    player.Warp(new Vector3(row.x, row.y, row.z));
-                    //StartCoroutine(player.CheckUps(row.lastsaved));
-                    
-                    return go;
-                } else Debug.LogError("no prefab found for class: " + row.classType.ToString());
+            if(player == null)
+            {
+                Debug.Log("Player is null");
+                return false;
             }
-            return null;
+            var stopwatch = new System.Diagnostics.Stopwatch();
+            stopwatch.Start();
+            Characters row = connection.FindWithQuery<Characters>("SELECT * FROM Characters WHERE id=? AND accId=?", characterId, accId);
+            if(row != null)
+            {
+                player.Warp(new Vector3(row.x, row.y, row.z)); // set place in world
+                await SetCharacterData(player, row);
+
+                player.health = player.healthMax;
+                player.mana = player.manaMax;
+
+                stopwatch.Stop();
+                Debug.Log($"{player.name} Loaded in {stopwatch.ElapsedMilliseconds}");
+                return true;
+            }
+            stopwatch.Stop();
+            return false;
         }
         public async Task SetCharacterData(Player player, Characters row)
         {
+            
             List<Task> tasks = new List<Task>();
             //info
             player.id = row.id.Value;
             player.name = row.name;
             player.accId = row.accId;
-            player.classInfo = new PlayerClassData(row.classType, row.classRank);
-            player.gender = row.gender;
+            player.classInfo.type = row.classType;
+            player.classInfo.rank = row.classRank;
+            player.model.gender = row.gender;
             player.level = row.level;
             player.own.experience = row.experience;
             player.avatar = row.avatar;
             player.frame = row.frame;
-            player.cityId = row.city;
-            player.privacy = row.privacy;
             player.activeTitle = row.activeTitle;
             player.teamId = row.teamId;
-            player.showWardrop = row.showWardrobe;
+            player.own.cityId = row.city;
+            player.own.privacy = row.privacy;
+            player.own.showClothing = row.showClothing;
             player.own.createdAt = row.createdAt;
             player.own.shareExpWithPet = row.shareExpWithPet;
             player.suspiciousActivities = row.suspiciousActivities;
@@ -159,61 +181,57 @@ namespace Game
             tasks.Add(Task.Run(() => LoadMounts(player, row.activeMount)));
             tasks.Add(Task.Run(() => LoadTitles(player)));
             tasks.Add(Task.Run(() => LoadQuests(player)));
-            tasks.Add(Task.Run(() => LoadGuild(player, row.guildId)));
             tasks.Add(Task.Run(() => LoadTeam(player)));
             tasks.Add(Task.Run(() => LoadAchievements(player)));
-            
-            if(row.spouseId > 0) 
+            tasks.Add(Task.Run(() => LoadGuildSkills(player)));
+            if(row.spouseId > 0)
+            {
                 tasks.Add(Task.Run(() => LoadMarriage(player, row.spouseId)));
-            
-            player.own.tribe = TribeSystem.tribes[row.tribeId];
-            TribeSystem.OnlineTribesMembers[row.tribeId].Add(player.id);
+            }
 
             await Task.WhenAll(tasks);
-
-            player.health = player.healthMax;
-            player.mana = player.manaMax;
         }
-        public void SetCharacterOnline(uint id)
+        // TODO: add random avatar
+        public void CharacterCreate(Network.Messages.CharacterCreate msg, ulong accId)
         {
-            connection.Execute("UPDATE characters SET online=1 WHERE id=?", id);
-        }
-        public void CharacterCreate(Player player)
-        {
-            connection.BeginTransaction();// only use a transaction if not called within SaveMany transaction
-            player.cityId = (byte)(player.tribeId - 1);
-            connection.InsertOrReplace(new Characters { // in case creating new Character
+            ScriptableClass classData = ScriptableClass.dict[msg.classId];
+            // get city id
+            byte cityId = 0;
+            for (int i = 0; i < TribeSystem.tribesIds.Length; i++)
+            {
+                if(TribeSystem.tribesIds[i] == msg.tribeId)
+                {
+                    cityId = (byte)i;
+                    break;
+                }
+            }
+            connection.Insert(new Characters
+            {
                 id = null,
-                name = player.name,
-                accId = player.accId,
-                classType = player.classInfo.type,
-                classRank = player.classInfo.rank,
-                gender = player.gender,
-                avatar = player.avatar,
-                city = player.cityId,
-                x = Storage.data.cities[player.cityId].StartingPoint().x,
-                y = Storage.data.cities[player.cityId].StartingPoint().y,
-                z = Storage.data.cities[player.cityId].StartingPoint().z,
+                name = msg.name,
+                accId = accId,
+                classType = msg.classId,
+                gender = msg.gender,
+                city = cityId,
+                x = Storage.data.cities[cityId].StartingPoint().x,
+                y = Storage.data.cities[cityId].StartingPoint().y,
+                z = Storage.data.cities[cityId].StartingPoint().z,
                 gold = Storage.data.newPlayer.gold,
-                br = player.battlepower,
-                vitality = player.own.vitality,
-                strength = player.own.strength,
-                intelligence = player.own.intelligence,
-                endurance = player.own.endurance,
-                tribeId = player.tribeId,
+                vitality = classData.initialAPs[0],
+                strength = classData.initialAPs[1],
+                intelligence = classData.initialAPs[2],
+                endurance = classData.initialAPs[3],
+                tribeId = msg.tribeId,
                 createdAt = DateTime.Now.ToOADate()
             });
-            SaveInventory(player);
-            SaveEquipment(player);
-            SaveSkills(player);
-            SaveQuests(player);
-            Save7DaysSignUp(player);
-            connection.Commit();
             // more modifications
-            TribeSystem.EditTroops(player.tribeId);
+            TribeSystem.EditTroops(msg.tribeId);
         }
-        public async Task CharacterSave(Player player, bool online, bool useTransaction = true) {
-            if(useTransaction) connection.BeginTransaction();
+        public async Task CharacterSave(Player player, bool online, Vector3 position, bool useTransaction = true) {
+            if(useTransaction)
+            {
+                connection.BeginTransaction();
+            }
             List<Task> tasks = new List<Task>();
             tasks.Add(Task.Run(() =>
             {
@@ -224,16 +242,16 @@ namespace Game
                     accId = player.accId,
                     classType = player.classInfo.type,
                     classRank = player.classInfo.rank,
-                    gender = player.gender,
+                    gender = player.model.gender,
                     avatar = player.avatar,
-                    city = player.cityId,
-                    x = player.transform.position.x,
-                    y = player.transform.position.y,
-                    z = player.transform.position.z,
+                    city = player.own.cityId,
+                    x = position.x,
+                    y = position.y,
+                    z = position.z,
                     online = online,
                     lastsaved = DateTime.Now.ToOADate(),
                     createdAt = player.own.createdAt,
-                    privacy = player.privacy,
+                    privacy = player.own.privacy,
                     vipLevel = player.own.vip.level,
                     level = (byte)player.level,
                     experience = player.own.experience,
@@ -269,7 +287,7 @@ namespace Game
                     teamId = player.teamId,
                     activePet = player.activePet != null ? player.activePet.id : (ushort)0,
                     activeMount = player.mount.id,
-                    showWardrobe = player.showWardrop,
+                    showClothing = player.own.showClothing,
                     shareExpWithPet = player.own.shareExpWithPet,
                     suspiciousActivities = player.suspiciousActivities
                 });
@@ -290,80 +308,83 @@ namespace Game
             tasks.Add(Task.Run(() => SaveCharacterGuildInfo(player)));
             tasks.Add(Task.Run(() => SaveFriends(player)));
             tasks.Add(Task.Run(() => SaveMarriage(player)));
+            if(!online)
+            {
+                // save preview
+                tasks.Add(Task.Run(() => {
+                    connection.InsertOrReplace(new PreviewData
+                    {
+                        id = player.id,
+                        health = player.healthMax,
+                        mana = player.manaMax,
+                        pAtk = player.p_atk,
+                        mAtk = player.m_atk,
+                        pDef = player.p_def,
+                        mDef = player.m_def,
+                        block = player.blockChance,
+                        untiBlock = player.untiBlockChance,
+                        critRate = player.critRate,
+                        critDmg = player.critDmg,
+                        antiCrit = player.antiCrit,
+                        untiStun = player.untiStunChance,
+                        speed = player.speed,
+                        lastSave = DateTime.Now
+                    });
+                }));
+                if(player.stillIn7Days)
+                {
+                    tasks.Add(Task.Run(() => Save7DaysSignUp(player)));
+                }
+            }
+            
             await Task.WhenAll(tasks);
-            if (useTransaction) connection.Commit();
+
+            if (useTransaction)
+            {
+                connection.Commit();
+            }
         }
-        public async Task CharacterSaveMany(IEnumerable<Player> players, bool online = true) {
+        public async Task CharacterSaveMany(IEnumerable<Player> players, bool online = true)
+        {
             connection.BeginTransaction(); // transaction for performance
             List<Task> tasks = new List<Task>();
             foreach(Player player in players)
             {
-                tasks.Add(CharacterSave(player, online, false));
+                Vector3 pos = new Vector3
+                {
+                    x = player.transform.position.x,
+                    y = player.transform.position.y,
+                    z = player.transform.position.z
+                };
+                tasks.Add(CharacterSave(player, online, pos, false));
             }
             await Task.WhenAll(tasks);
             connection.Commit(); // end transaction
         }
-        public void CharacterLogOff(Player player)
+        public async Task CharacterLogOff(Player player, Vector3 position)
         {
             // if occupaied in event
-            if(player.own.occupation != null)
-            {
-                if(player.own.occupation == PlayerOccupation.RegisteredArena1v1)
-                {
-                    ArenaSystem.UnRegister1vs1(player);
-                }
-                else if(player.own.occupation == PlayerOccupation.ReadyArena1v1)
-                {
-                    ArenaSystem.RefuseMatch1v1(player);
-                }
-                else if(player.own.occupation == PlayerOccupation.InMatchArena1v1)
-                {
-                    ArenaSystem.LeaveMatch1v1(player);
-                }
-            }
+            player.UnregisterFromAnyOccupation();
             // if in any way have lastLocation saved return to it 
             if(player.lastLocation != Vector3.zero)
             {
-                player.Warp(player.lastLocation);
-            }
-            if(player.IsTrading())
-            {
-                TradeSystem.Cancel(player);
+                //player.Warp(player.lastLocation);
+                position = player.lastLocation;
             }
             // normal save
-            CharacterSave(player, false, true);
-            // save preview data
-            connection.InsertOrReplace(new PreviewData
-            {
-                id = player.id,
-                health = player.healthMax,
-                mana = player.manaMax,
-                pAtk = player.p_atk,
-                mAtk = player.m_atk,
-                pDef = player.p_def,
-                mDef = player.m_def,
-                block = player.blockChance,
-                untiBlock = player.untiBlockChance,
-                critRate = player.critRate,
-                critDmg = player.critDmg,
-                antiCrit = player.antiCrit,
-                untiStun = player.untiStunChance,
-                speed = player.speed,
-                lastSave = DateTime.Now
-            });
-
-            if(player.stillIn7Days)
-                Save7DaysSignUp(player);
+            await CharacterSave(player, false, position, true);
             // remove from online
             player.SetGuildOnline(DateTime.Now.ToOADate());
             TribeSystem.OnlineTribesMembers[player.tribeId].Remove(player.id);
             if(player.InTeam())
+            {
                 TeamSystem.SetMemberOnline(player.teamId, player.id, false);
+            }
         }
         public PreviewPlayerData CharacterPreview(uint playerId)
         {
             PreviewPlayerData result = new PreviewPlayerData();
-            Characters charData = connection.FindWithQuery<Characters>("SELECT name, level, gender, classType, classRank, vipLevel, tribeId, guildId, militaryRank, br, wardropBody, wardropWeapon, wardropWing, wardropSoul, showWardrobe FROM Characters WHERE id=?", playerId);
+            Characters charData = connection.FindWithQuery<Characters>("SELECT name, level, gender, classType, classRank, vipLevel, tribeId, guildId, militaryRank, br, wardropBody, wardropWeapon, wardropWing, wardropSoul, showClothing FROM Characters WHERE id=?", playerId);
             if(charData != null) {
                 result.status = true;
                 PreviewData preview = connection.FindWithQuery<PreviewData>("SELECT * FROM PreviewData WHERE id=?", playerId);
@@ -416,6 +437,10 @@ namespace Game
             else result.status = false;
             
             return result;
+        }
+        public void SetCharacterOnline(uint id)
+        {
+            connection.Execute("UPDATE characters SET online=1 WHERE id=?", id);
         }
         public void CharacterDelete(uint id, ulong accId)
         {
@@ -500,7 +525,7 @@ namespace Game
         }
     #endregion
     #region Inventory
-        async Task LoadInventory(Player player)
+        void LoadInventory(Player player)
         {
             for(int i = 0; i < player.own.inventorySize; i++)
                 player.own.inventory.Add(new ItemSlot());
@@ -559,9 +584,9 @@ namespace Game
         }
     #endregion
     #region Equipments
-        private async Task LoadEquipment(Player player)
+        private void LoadEquipment(Player player)
         {
-            player.equipment.Initiate(Storage.data.player.equipmentCount);
+            player.own.equipment.Initiate(Storage.data.player.equipmentCount);
             List<Equipments> table = connection.Query<Equipments>("SELECT * FROM Equipments WHERE owner=?", player.id);
             foreach (Equipments row in table) {
                 if (row.slot < Storage.data.player.equipmentCount)
@@ -578,7 +603,7 @@ namespace Game
                         item.socket4 = new Socket(row.socket4);
                         item.durability = row.durability;
                         item.bound = row.bound;
-                        player.equipment[row.slot] = new ItemSlot(item, row.amount);
+                        player.own.equipment[row.slot] = new ItemSlot(item, row.amount);
                     }
                     else Debug.LogWarning("LoadEquipment: skipped item " + row.id + " for " + player.name + " because it doesn't exist anymore. If it wasn't removed intentionally then make sure it's in the Resources folder.");
                 }
@@ -588,11 +613,11 @@ namespace Game
         void SaveEquipment(Player player)
         {
             connection.Execute("DELETE FROM Equipments WHERE owner=?", player.id);
-            if(player.equipment.Count == 0)
+            if(player.own.equipment.Count == 0)
                 return;
-            for(int i = 0; i < player.equipment.Count; i++)
+            for(int i = 0; i < player.own.equipment.Count; i++)
             {
-                ItemSlot slot = player.equipment[i];
+                ItemSlot slot = player.own.equipment[i];
                 if (slot.amount > 0)
                 {
                     connection.Insert(new Equipments
@@ -617,7 +642,7 @@ namespace Game
         }
     #endregion
     #region Accessories
-        async Task LoadAccessories(Player player)
+        void LoadAccessories(Player player)
         {
             for(int i = 0; i < Storage.data.player.accessoriesCount; i++)
             {
@@ -678,7 +703,7 @@ namespace Game
         }
     #endregion
     #region Skills
-        async Task LoadSkills(Player player)
+        void LoadSkills(Player player)
         {
             //for(int i = 0; i < player.skillTemplates.Length; i++) 
             //    player.skills.Add(new Skill(player.skillTemplates[i]));
@@ -728,7 +753,7 @@ namespace Game
         }
     #endregion
     #region Buffs
-        async Task LoadBuffs(Player player)
+        void LoadBuffs(Player player)
         {
             List<Buffs> table = connection.Query<Buffs>("SELECT * FROM Buffs WHERE id=?", player.id);
             if(table.Count < 1)
@@ -762,7 +787,7 @@ namespace Game
         }
     #endregion
     #region Quests
-        async Task LoadQuests(Player player)
+        void LoadQuests(Player player)
         {
             List<Quests> table = connection.Query<Quests>("SELECT * FROM Quests WHERE owner=?", player.id);
             if(table.Count > 0)
@@ -802,7 +827,7 @@ namespace Game
         }
     #endregion
     #region Pets
-        async Task LoadPets(Player player, ushort activeId)
+        void LoadPets(Player player, ushort activeId)
         {
             List<Pets> table = connection.Query<Pets>("SELECT * FROM Pets WHERE owner=?", player.id);
             if(table.Count < 1)
@@ -850,7 +875,7 @@ namespace Game
         }
     #endregion
     #region Mounts
-        async Task LoadMounts(Player player, ushort activeId)
+        void LoadMounts(Player player, ushort activeId)
         {
             List<Mounts> table = connection.Query<Mounts>("SELECT * FROM Mounts WHERE owner=?", player.id);
             if(table.Count < 1)
@@ -918,7 +943,7 @@ namespace Game
         }
     #endregion
     #region VIP
-        async Task LoadVIP(Player player, byte level)
+        void LoadVIP(Player player, byte level)
         {
             VIPs row = connection.FindWithQuery<VIPs>("SELECT * FROM VIPs WHERE id=?", player.id);
             if(row != null)
@@ -948,7 +973,7 @@ namespace Game
         }
     #endregion
     #region Wardrobe
-        async Task LoadWardrobe(Player player)
+        void LoadWardrobe(Player player)
         {
             //wardrobe
             List<Wardrobes> table = connection.Query<Wardrobes>("SELECT id FROM Wardrobes WHERE owner=?", player.id);
@@ -964,17 +989,13 @@ namespace Game
                 }
             }
             //cloths
-            for(int i = 0; i < 4; i++)
-                player.wardrobe.Add(new WardrobeItem());
-
+            player.own.clothing.Initiate();
             List<Clothing> cTable = connection.Query<Clothing>("SELECT id, plus FROM Clothing WHERE owner=?", player.id);
-
             if(cTable.Count > 0)
             {
                 for(int i = 0; i < cTable.Count; i++)
                 {
-                    player.wardrobe[(int)ScriptableWardrobe.dict[cTable[i].id].category] 
-                    = new WardrobeItem(cTable[i].id, cTable[i].plus);
+                    player.own.clothing[(int)ScriptableWardrobe.dict[cTable[i].id].category].Set(cTable[i]);
                 }
             }
         }
@@ -992,14 +1013,14 @@ namespace Game
                 });
             }
             connection.Execute("DELETE FROM Clothing WHERE owner=?", player.id);
-            for(int i = 0; i < player.wardrobe.Count; i++)
+            for(int i = 0; i < player.own.clothing.Count; i++)
             {
-                if(player.wardrobe[i].isUsed) {
+                if(player.own.clothing[i].isUsed) {
                     connection.Insert(new Clothing
                     {
                         owner = player.id,
-                        id = player.wardrobe[i].id,
-                        plus = player.wardrobe[i].plus
+                        id = player.own.clothing[i].id,
+                        plus = player.own.clothing[i].plus
                     });
                 }
             }
@@ -1100,7 +1121,7 @@ namespace Game
         }
     #endregion
     #region Titles
-        async Task LoadTitles(Player player) {
+        void LoadTitles(Player player) {
             List<Titles> table = connection.Query<Titles>("SELECT title FROM Titles WHERE id=?", player.id);
             if(table.Count > 0)
             {
@@ -1125,26 +1146,18 @@ namespace Game
         }
     #endregion
     #region Guild
-        async Task LoadGuild(Player player, uint guildId)
+        void LoadGuildSkills(Player player)
         {
-            if(guildId > 0 && GuildSystem.guilds.TryGetValue(guildId, out Guild guild))
-            {
-                player.guild = new GuildPublicInfo(guild.id, guild.Name);
-                player.own.guild = guild;
-                GuildMember data = GuildSystem.GetMemberById(guildId, player.id);
-                player.own.guildContribution = data.contribution;
-                player.own.guildRank = data.rank;
-            }
             GuildSkills skills = connection.FindWithQuery<GuildSkills>("SELECT * FROM GuildSkills WHERE id=?", player.id);
             player.own.guildSkills = new SyncListByte() {0, 0, 0, 0, 0, 0};
             if(skills != null)
             {
-                player.own.guildSkills[0] = skills.vitalityLvl;
-                player.own.guildSkills[1] = skills.strengthLvl;
-                player.own.guildSkills[2] = skills.intelligenceLvl;
-                player.own.guildSkills[3] = skills.enduranceLvl;
-                player.own.guildSkills[4] = skills.critLvl;
-                player.own.guildSkills[5] = skills.blockLvl;
+                player.own.guildSkills[(int)GuildSkillType.Vitality] = skills.vitalityLvl;
+                player.own.guildSkills[(int)GuildSkillType.Strength] = skills.strengthLvl;
+                player.own.guildSkills[(int)GuildSkillType.Intelligence] = skills.intelligenceLvl;
+                player.own.guildSkills[(int)GuildSkillType.Endurance] = skills.enduranceLvl;
+                player.own.guildSkills[(int)GuildSkillType.Crit] = skills.critLvl;
+                player.own.guildSkills[(int)GuildSkillType.Block] = skills.blockLvl;
             }
         } 
         public void SaveCharacterGuildInfo(Player player)
@@ -1840,7 +1853,7 @@ namespace Game
                 TeamSystem.nextTeamId = maxInDB.id;
             }
         }
-        async Task LoadTeam(Player player)
+        void LoadTeam(Player player)
         {
             if(player.teamId < 1) // guard
                 return;
@@ -1912,7 +1925,7 @@ namespace Game
         }
     #endregion
     #region Achievements
-        async Task LoadAchievements(Player player)
+        void LoadAchievements(Player player)
         {
             player.own.achievements = new SyncListAchievements();
             Archive archive = connection.FindWithQuery<Archive>("SELECT * FROM Archive WHERE owner=?", player.id);
@@ -1998,7 +2011,7 @@ namespace Game
                 return;
             }
 
-            Marriages row = connection.FindWithQuery<Marriages>($"SELECT level, exp FROM Marriages WHERE {(player.gender == Gender.Male ? "hasband" : "wife")}=?", player.id);
+            Marriages row = connection.FindWithQuery<Marriages>($"SELECT level, exp FROM Marriages WHERE {(player.model.gender == Gender.Male ? "hasband" : "wife")}=?", player.id);
             Characters spouse = connection.FindWithQuery<Characters>("SELECT name, level FROM Characters WHERE id=?", sId);
             
             if(row != null && spouse != null)
@@ -2022,8 +2035,8 @@ namespace Game
                 //    return;
                 connection.InsertOrReplace( new Marriages
                 {
-                    hasband = player.gender == Gender.Male ? player.id : player.own.marriage.spouse,
-                    wife = player.gender == Gender.Female ? player.id : player.own.marriage.spouse,
+                    hasband = player.model.gender == Gender.Male ? player.id : player.own.marriage.spouse,
+                    wife = player.model.gender == Gender.Female ? player.id : player.own.marriage.spouse,
                     level = player.own.marriage.level,
                     exp = player.own.marriage.exp
                 });

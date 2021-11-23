@@ -10,14 +10,15 @@ GameObject:
   m_Component:
   - component: {fileID: 467756}
   - component: {fileID: 114478928265611242}
+  - component: {fileID: 11491078}
   - component: {fileID: 19543452}
   - component: {fileID: 4311017926998383211}
-  - component: {fileID: 11436562}
   - component: {fileID: 11460454}
   - component: {fileID: 7022840321246578790}
   - component: {fileID: 11401424}
+  - component: {fileID: -4407312652352809160}
   - component: {fileID: 5477952}
-  - component: {fileID: 11491078}
+  - component: {fileID: 11436562}
   m_Layer: 8
   m_Name: Warrior
   m_TagString: Player
@@ -58,6 +59,20 @@ MonoBehaviour:
   visible: 0
   m_AssetId: 624407a67304fd84ca5e135bc079e50d
   hasSpawned: 0
+--- !u!114 &11491078
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 110258}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9371b1046580e654c9cb79d2685ef559, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  syncMode: 0
+  syncInterval: 0.1
 --- !u!195 &19543452
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -96,18 +111,6 @@ MonoBehaviour:
   syncInterval: 0.1
   agent: {fileID: 19543452}
   entity: {fileID: 11460454}
---- !u!114 &11436562
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 110258}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d8055b2c9f09c4a42bbe9d1613f0b3f1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &11460454
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -128,7 +131,7 @@ MonoBehaviour:
   skillTemplates:
   - {fileID: 11400000, guid: 580fcade1a96dcb4c9d4c14ec909c502, type: 2}
   inSafeZone: 0
-  _level: 0
+  _level: 1
   _target: {fileID: 0}
   currentSkill: -1
   lastCombatTime: 0
@@ -184,29 +187,76 @@ MonoBehaviour:
   rubberbanding: {fileID: 4311017926998383211}
   chat: {fileID: 11401424}
   own: {fileID: 7022840321246578790}
-  attackToMoveRangeRatio: 0.8
+  stats: {fileID: -4407312652352809160}
   continueCastAfterStunned: 1
-  id: 0
   state: 0
+  id: 0
+  tribeId: 0
   classInfo:
     type: 1
     rank: 0
-  gender: 0
-  cityId: 0
-  privacy: 0
+  model:
+    gender: 0
+    body:
+      id: 0
+      type: 0
+      quality: 0
+    weapon:
+      id: 0
+      type: 0
+      quality: 0
+    wing: 0
+    soul: 0
   avatar: 0
   frame: 0
-  tribeId: 0
   guild:
     id: 0
     name: 
   teamId: 0
   activeTitle: 0
-  showWardrop: 1
   mount:
     id: 0
     mounted: 0
   accId: 0
+  tribe:
+    Rank: 0
+    Wealth: 0
+    TotalBR: 0
+    Troops: 0
+  myGuild:
+    id: 0
+    Name: 
+    tribeId: 0
+    level: 0
+    exp: 0
+    AutoAccept: 0
+    JoinLevel: 0
+    br: 0
+    membersCount: 0
+    notice: 
+    masterName: 
+    assets:
+      wealth: 0
+      wood: 0
+      stone: 0
+      iron: 0
+      food: 0
+    buildings:
+      hall: 0
+      academy: 0
+      storage: 0
+      shop: 0
+  myGuildMember:
+    id: 0
+    Name: 
+    level: 0
+    br: 0
+    classInfo:
+      type: 0
+      rank: 0
+    rank: 0
+    contribution: 0
+    online: 0
   lastLocation: {x: 0, y: 0, z: 0}
   inprogressAchievements:
     achievementPoints: {fileID: 0}
@@ -254,6 +304,9 @@ MonoBehaviour:
   inventorySize: 0
   nextRiskyActionTime: 0
   occupation: 0
+  cityId: 0
+  showClothing: 1
+  privacy: 0
   strength: 0
   intelligence: 0
   vitality: 0
@@ -266,36 +319,7 @@ MonoBehaviour:
   TotalHonor: 0
   MonsterPoints: 0
   militaryRank: 0
-  guild:
-    id: 0
-    Name: 
-    tribeId: 0
-    level: 0
-    exp: 0
-    AutoAccept: 0
-    JoinLevel: 0
-    br: 0
-    membersCount: 0
-    notice: 
-    masterName: 
-    assets:
-      wealth: 0
-      wood: 0
-      stone: 0
-      iron: 0
-      food: 0
-    buildings:
-      hall: 0
-      academy: 0
-      storage: 0
-      shop: 0
   guildRank: 0
-  guildContribution: 0
-  tribe:
-    Rank: 0
-    Wealth: 0
-    TotalBR: 0
-    Troops: 0
   tribeRank: 0
   tribeQuests: 0
   tribeGoldContribution: 0
@@ -363,6 +387,19 @@ MonoBehaviour:
   syncMode: 0
   syncInterval: 0.1
   player: {fileID: 11460454}
+--- !u!114 &-4407312652352809160
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 110258}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 88e7415518f822a49934c45afe3f7238, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  player: {fileID: 11460454}
 --- !u!54 &5477952
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -379,7 +416,7 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!114 &11491078
+--- !u!114 &11436562
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -388,11 +425,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 110258}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9371b1046580e654c9cb79d2685ef559, type: 3}
+  m_Script: {fileID: 11500000, guid: d8055b2c9f09c4a42bbe9d1613f0b3f1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  syncMode: 0
-  syncInterval: 0.1
 --- !u!1 &1000011217240754
 GameObject:
   m_ObjectHideFlags: 0

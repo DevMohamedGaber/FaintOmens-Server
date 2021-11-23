@@ -62,8 +62,8 @@ namespace Game.ControlPanel
         }
         public void OnSwapGender()
         {
-            Gender oldGen = Player.onlinePlayers[id].gender;
-            Player.onlinePlayers[id].gender = oldGen == Gender.Male ? Gender.Female : Gender.Male;
+            Gender oldGen = Player.onlinePlayers[id].model.gender;
+            Player.onlinePlayers[id].model.gender = oldGen == Gender.Male ? Gender.Female : Gender.Male;
         }
         void OnEnable()
         {

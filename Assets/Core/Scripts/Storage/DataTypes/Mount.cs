@@ -18,6 +18,7 @@ namespace Game.StorageData
         public uint[] expMax;
         public ushort[] trainingExpMax;
         public FeedItem[] feeds;
+        public float savedBonus;
         public FeedItem GetFeed(int id)
         {
             if(feeds.Length > 0)

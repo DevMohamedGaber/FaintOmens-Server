@@ -44,29 +44,31 @@ namespace Game.Network
                 manager.ServerSendError(conn, NetworkError.InvalidAccount, NetworkErrorAction.Disconnect);
             }
         }
-        public bool AccountLoggedIn(ulong accId) {
+        public bool AccountLoggedIn(ulong accId)
+        {
             if(manager.lobby.ContainsValue(accId))
+            {
                 return true;
-            foreach(Player player in Player.onlinePlayers.Values) {
+            }
+            foreach(Player player in Player.onlinePlayers.Values)
+            {
                 if(player.accId == accId)
+                {
                     return true;
+                }
             }
             return false;
         }
-        public override void OnStartServer() {
+        public override void OnStartServer()
+        {
             NetworkServer.RegisterHandler<Login>(OnServerLogin, false);
         }
-
         public override void OnServerAuthenticate(NetworkConnection conn)
         {
             // wait for LoginMsg from client
         }
-
         public bool IsAllowedAccountName(string account)
         {
-            // not too long?
-            // only contains letters, number and underscore and not empty (+)?
-            // (important for database safety etc.)
             return account.Length <= Storage.data.account.usernameMaxLength &&
                 Regex.IsMatch(account, @"^[a-zA-Z0-9_]+$");
         }

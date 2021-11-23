@@ -8,20 +8,19 @@ namespace Game
     {
         [Header("Components")]
         public NetworkNavMeshAgent networkNavMeshAgent;
-        [Header("Synced Vars")]
+        [Header("Synced")]
+        [SyncVar] public EntityState state = EntityState.Idle;
+        [SyncVar, SerializeField] ushort _id;
+        [SyncVar, SerializeField] Tier tier = Tier.F;
         [SyncVar] GameObject _owner;
+        public int dataIndex;
         public Player owner
         {
             get => _owner != null  ? _owner.GetComponent<Player>() : null;
             set => _owner = value != null ? value.gameObject : null;
         }
-        [SyncVar] public EntityState state = EntityState.Idle;
-        [SyncVar] public Tier tier = Tier.F;
-        [SyncVar] public byte stars;
-        public int dataIndex;
         public PetInfo data => owner.own.pets[dataIndex];
-        public ushort id => data.id;
-        
+        public ushort id => _id;
         [Header("Movement")]
         public float returnDistance = 5; 
         public float followDistance = 10;
@@ -90,6 +89,31 @@ namespace Game
         public override uint battlepower => Convert.ToUInt32(healthMax + manaMax + m_atk + p_atk + m_def + p_def + 
         (blockChance + untiBlockChance + critRate + critDmg + antiCrit + untiStunChance) * 100);
     #endregion
+        public void SetData(int dataIndex)
+        {
+            if(owner != null)
+            {
+                this.dataIndex = dataIndex;
+                PetInfo petData = owner.own.pets[dataIndex];
+                _id = petData.id;
+                tier = petData.tier;
+                level = petData.level;
+                health = healthMax;
+                mana = manaMax;
+            }
+            else
+            {
+                Debug.Log("Pet is ownerless");
+                Destroy(gameObject);
+            }
+        }
+        public void UpdateTier()
+        {
+            if(owner != null && dataIndex != 0)
+            {
+                tier = data.tier;
+            } 
+        }
         public bool Feed(uint amount) {
             if(amount > 0) {
                 PetInfo info = data;
@@ -103,14 +127,20 @@ namespace Game
             base.OnStartServer(); // call Entity's OnStartServer
             // load skills based on skill templates
             foreach (ScriptableSkill skillData in skillTemplates)
+            {
                 skills.Add(new Skill(skillData));
+            }
         }
         public override bool IsWorthUpdating() => true;
-        public override void Warp(Vector3 destination) {
+        public override void Warp(Vector3 destination)
+        {
             agent.Warp(destination);
             networkNavMeshAgent.RpcWarp(destination);
         }
-        public override void ResetMovement() => agent.ResetMovement();
+        public override void ResetMovement()
+        {
+            agent.ResetMovement();
+        }
         public override bool CanAttack(Entity entity) => base.CanAttack(entity) && (entity is Monster ||
                                     (entity is Player && entity != owner) || (entity is Pet pet && pet.owner != owner));
         public float CurrentCastRange() => 0 <= currentSkill && currentSkill < skills.Count ? skills[currentSkill].castRange : 0;

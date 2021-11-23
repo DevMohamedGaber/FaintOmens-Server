@@ -23,6 +23,7 @@ namespace Game
         public sg.Meteor meteor;
         public sg.Team team;
         public sg.Monsters monsters;
+        public sg.Ratios ratios;
         
         //public Dictionary<PlayerClass, GameObject> classPrefabs = new Dictionary<PlayerClass, GameObject>();
         public ScriptableQuest[] dailyQuests;
@@ -42,7 +43,6 @@ namespace Game
         public int playerClassPromotionCount = 4;
         public float playerInteractionRange = 4;
         public float guildInviteWaitSeconds = 3;
-        public int charactersPerAccount = 4;
         public BuffSkill offenderBuff;
         public BuffSkill murdererBuff;
         public ItemSlotArray[] signup7daysRewards;

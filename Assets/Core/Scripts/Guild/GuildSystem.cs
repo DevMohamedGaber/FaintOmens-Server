@@ -253,8 +253,10 @@ namespace Game
             for (int i = 0; i < guildsJoinInfo[tribeId].Length; i++)
             {
                 if(guildsJoinInfo[tribeId][i].id == guildId)
+                {
                     infoIndex = i;
                     break;
+                }
             }
             if(infoIndex != -1)
             {
@@ -360,14 +362,14 @@ namespace Game
                 player.Notify("Skill already reached max level", "المهارة وصلت لاعلي مستوي بالفعل");
                 return;
             }
-            if(player.own.guild.buildings.academy < lvl + 1)
+            if(player.myGuild.buildings.academy < lvl + 1)
             {
                 player.Notify($"Academy level {lvl + 1} is required", $"مطلوب اكاديمية مستوي {lvl + 1}");
                 return;
             }
             if(ScriptableGuildSkill.dict.TryGetValue(skillIndex, out ScriptableGuildSkill skill))
             {
-                if(player.own.guildContribution < skill.cost[lvl])
+                if(player.myGuildMember.contribution < skill.cost[lvl])
                 {
                     player.Notify("You don't have enough Contribution to the guild", "لا تملك مشاركة كافية في النقابة");
                     return;
@@ -419,7 +421,7 @@ namespace Game
             GuildMember member = GetMemberById(guildId, player.id);
             if(member.rank >= Storage.data.guild.recallMinRank)
             {
-                GuildRecallRequest req = new GuildRecallRequest(player.id, player.name, player.cityId, player.transform.position);
+                GuildRecallRequest req = new GuildRecallRequest(player.id, player.name, player.own.cityId, player.transform.position);
                 for (int i = 0; i < members[guildId].Length; i++)
                 {
                     if(Player.onlinePlayers.TryGetValue(members[guildId][i].id, out Player target))
@@ -693,7 +695,7 @@ namespace Game
             {
                 //if(guild.id > 0)
                 //    player.guild.myInfo = GetMemberById(guild.id, member);
-                player.own.guild = guild;
+                //player.own.guild = guild;
             }
         }
         static void BroadcastChanges(Guild guild)

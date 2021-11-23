@@ -1031,7 +1031,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   account:
-    usernameMaxLength: 30
+    charactersCount: 4
+    usernameMaxLength: 16
   player:
     lvlCap: 100
     dailyHonor: 3000
@@ -1053,10 +1054,12 @@ MonoBehaviour:
   newPlayer:
     gold: 10000000
   wardrobe:
+    count: 0
     max: 10
     cost: 
     blessingId: 0
   pet:
+    petPrefab: {fileID: 0}
     lvlCap: 100
     expMax:
       multiplier: 0
@@ -1072,6 +1075,7 @@ MonoBehaviour:
     starUpItemsCount: 
     upgradeItemsCount: 
     feeds: []
+    savedBonus: 0.5
   mount:
     lvlCap: 100
     expMaxRate:
@@ -1092,6 +1096,7 @@ MonoBehaviour:
     expMax: 
     trainingExpMax: 
     feeds: []
+    savedBonus: 0.5
   arena:
     minLvl: 0
     lvlDiff: 0
@@ -1127,27 +1132,34 @@ MonoBehaviour:
     honor: {fileID: 0}
     popularity: {fileID: 0}
   guild:
-    minJoinLevel: 0
-    capacity: 0
-    capacityIncresePerLevel: 0
-    maxLevel: 0
-    skillsMaxLevel: 0
-    maxElites: 0
-    creationPriceGold: 0
-    goldToContribution: 0
-    diamondToContribution: 0
-    maxNoticeLength: 0
-    maxNameLength: 0
+    minJoinLevel: 1
+    capacity: 20
+    capacityIncresePerLevel: 10
+    maxLevel: 10
+    skillsMaxLevel: 10
+    maxElites: 6
+    creationPriceGold: 3000
+    goldToContribution: 5000
+    diamondToContribution: 1
+    maxNoticeLength: 150
+    maxNameLength: 16
     expMaxDynamic:
-      multiplier: 0
-      baseValue: 0
+      multiplier: 1000
+      baseValue: 1.7
     expMax: 
-    hallUpgradeReqs: []
-    inviteMinRank: 0
-    kickMinRank: 0
-    promoteMinRank: 0
-    recallMinRank: 0
-    notifyMinRank: 0
+    hallUpgradeReqs:
+    - wealth: 0
+      wood: 0
+      stone: 0
+      iron: 0
+      food: 0
+    inviteMinRank: 2
+    kickMinRank: 2
+    promoteMinRank: 2
+    recallMinRank: 2
+    notifyMinRank: 2
+    blockSkillPerLvl: 0.03
+    critRateSkillPerLvl: 0.03
   marriage:
     commonFee: 0
     nobleFee: 0
@@ -1163,6 +1175,26 @@ MonoBehaviour:
   monsters:
     maxRandomSpawnIteration: 0
     eliteSpawnCheckInMins: 0
+  ratios:
+    playerAttackToMoveRange: 0
+    AP_Vitality: 0
+    AP_Strength_ATK: 0
+    AP_Strength_DEF: 0
+    AP_Intelligence_ATK: 0
+    AP_Intelligence_DEF: 0
+    AP_Intelligence_MANA: 0
+    AP_Endurance: 0
+    hp_br: 0
+    mp_br: 0
+    pAtk_br: 0
+    mAtk_br: 0
+    pDef_br: 0
+    mDef_br: 0
+    block_br: 0
+    antiBlock_br: 0
+    critRate_br: 0
+    critDmg_br: 0
+    antiCrit_br: 0
   dailyQuests: []
   dailySignRewards: []
   SignUp7DaysEventsRewards: []
@@ -1208,7 +1240,6 @@ MonoBehaviour:
   playerClassPromotionCount: 4
   playerInteractionRange: 4
   guildInviteWaitSeconds: 3
-  charactersPerAccount: 4
   offenderBuff: {fileID: 0}
   murdererBuff: {fileID: 0}
   signup7daysRewards: []
@@ -1463,7 +1494,6 @@ MonoBehaviour:
   playerSpawnMethod: 0
   spawnPrefabs:
   - {fileID: 110258, guid: 624407a67304fd84ca5e135bc079e50d, type: 3}
-  characterLimit: 4
   saveInterval: 600
 --- !u!1001 &1535727616206808843
 PrefabInstance:

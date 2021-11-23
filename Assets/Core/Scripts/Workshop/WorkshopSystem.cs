@@ -311,9 +311,9 @@ namespace Game
             // from equipments
             if(from == WorkshopOperationFrom.Equipments)
             {
-                if(index >= player.equipment.Count || player.equipment[index].isEmpty)
+                if(index >= player.own.equipment.Count || player.own.equipment[index].isEmpty)
                     return null;
-                return player.equipment[index];
+                return player.own.equipment[index];
             }
             // from accessories
             if(from == WorkshopOperationFrom.Accessories)
@@ -330,10 +330,17 @@ namespace Game
         static void SaveSlot(Player player, WorkshopOperationFrom from, int index, ItemSlot slot)
         {
             if(from == WorkshopOperationFrom.Equipments)
-                player.equipment[index] = slot;
+            {
+                player.own.equipment[index] = slot;
+            }
             else if(from == WorkshopOperationFrom.Accessories)
+            {
                 player.own.accessories[index] = slot;
-            else player.own.inventory[index] = slot;
+            }
+            else
+            {
+                player.own.inventory[index] = slot;
+            }
         }
     }
 }

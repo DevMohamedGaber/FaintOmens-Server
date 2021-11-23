@@ -9,6 +9,49 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 0}
+  m_Script: {fileID: 11500000, guid: 5e4701de7589bbc4abc76b4ee6c1de67, type: 3}
   m_Name: 2
   m_EditorClassIdentifier: 
+  prefab: {fileID: 110258, guid: 23265d55e864d1c4b902ea94ba6f0d05, type: 3}
+  subs:
+  - reqLevel: 0
+    reqBR: 0
+    reqMilitaryRank: 0
+    UpgradeItems: []
+    startQuest: {fileID: 0}
+    hp:
+      multiplier: 0
+      baseValue: 0
+    mp:
+      multiplier: 0
+      baseValue: 0
+    pAtk:
+      multiplier: 0
+      baseValue: 0
+    pDef:
+      multiplier: 0
+      baseValue: 0
+    mAtk:
+      multiplier: 0
+      baseValue: 0
+    mDef:
+      multiplier: 0
+      baseValue: 0
+    block:
+      multiplier: 0
+      baseValue: 0
+    untiBlock:
+      multiplier: 0
+      baseValue: 0
+    crit:
+      multiplier: 0
+      baseValue: 0
+    critDmg:
+      multiplier: 0
+      baseValue: 0
+    untiCrit:
+      multiplier: 0
+      baseValue: 0
+  defaultEquipments: []
+  quality: 0
+  initialAPs: 0000000000000000

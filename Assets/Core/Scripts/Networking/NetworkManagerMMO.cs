@@ -14,8 +14,6 @@ namespace Game.Network
     {
         public Dictionary<NetworkConnection, ulong> lobby = new Dictionary<NetworkConnection, ulong>();
         [Header("Database")]
-        public int characterLimit = 4;
-        public static int characterNameMaxLength = 16;
         public float saveInterval = 60f; // in seconds
         public override void OnStartServer()
         {
@@ -41,7 +39,6 @@ namespace Game.Network
                 action = action
             });
         }
-        
         public override async void OnServerConnect(NetworkConnection conn)
         {
             var msg = await Database.singleton.LoadAvailableCharacters(lobby[conn]);
@@ -49,41 +46,39 @@ namespace Game.Network
         }
         async void OnCharacterSelect(NetworkConnection conn, CharacterSelect message)
         {
-            //double StartOps = System.DateTime.Now.ToOADate(); // Note: for test
+            print("OnCharacterSelect");
             // only while in lobby (aka after handshake and not ingame)
-            if (lobby.ContainsKey(conn))
-            {
-                // validate index
-                if(Server.IsPlayerIdWithInServer(message.id))
-                {
-                    GameObject go = await Database.singleton.CharacterLoad(message.id, lobby[conn]);
-                    if(go != null)
-                    {
-                        // add to client
-                        NetworkServer.AddPlayerForConnection(conn, go);
-                        Database.singleton.SetCharacterOnline(message.id);
-                        lobby.Remove(conn);
-                        UIManager.data.homePage.UpdateLobbyCount();
-                        // Note: update master server
-                    }
-                    else
-                    {
-                        UIManager.data.logsList.Add($"invalid accId: {lobby[conn]} charId: {message.id}");
-                        ServerSendError(conn, NetworkError.InvalidCharacterId);
-                    }
-                }
-                else
-                {
-                    UIManager.data.logsList.Add($"invalid accId: {lobby[conn]} charId: {message.id}");
-                    ServerSendError(conn, NetworkError.InvalidCharacterId);
-                }
-            }
-            else
+            if (!lobby.ContainsKey(conn))
             {
                 UIManager.data.logsList.Add("CharacterSelect: not in lobby " + conn);
                 ServerSendError(conn, NetworkError.AccountNotInLobby, NetworkErrorAction.Disconnect);
+                return;
             }
-            //print($"({conn}) Selected in: {((double)System.DateTime.Now.ToOADate() - StartOps)}"); // Note: for test
+            // validate id
+            if(!Server.IsPlayerIdWithInServer(message.id))
+            {
+                UIManager.data.logsList.Add($"invalid accId: {lobby[conn]} charId: {message.id}");
+                ServerSendError(conn, NetworkError.InvalidCharacterId);
+                return; 
+            }
+            
+            GameObject go = GameObject.Instantiate(ScriptableClass.dict[PlayerClass.Warrior].prefab);
+            bool loaded = await Database.singleton.CharacterLoad(message.id, lobby[conn], go.GetComponent<Player>());
+
+            if(loaded)
+            {
+                // add to client
+                NetworkServer.AddPlayerForConnection(conn, go);
+                Database.singleton.SetCharacterOnline(message.id);
+                lobby.Remove(conn);
+                UIManager.data.homePage.UpdateLobbyCount();
+                // Note: update master server
+            }
+            else
+            {
+                UIManager.data.logsList.Add($"invalid accId: {lobby[conn]} charId: {message.id}");
+                ServerSendError(conn, NetworkError.InvalidCharacterId);
+            }
         }
         async void OnCharacterCreate(NetworkConnection conn, CharacterCreate message)
         {
@@ -113,7 +108,7 @@ namespace Game.Network
                 ServerSendError(conn, NetworkError.ChooseTribe);
                 return;
             }
-            if(Database.singleton.CharactersCount(lobby[conn]) == Storage.data.charactersPerAccount)
+            if(Database.singleton.CharactersCount(lobby[conn]) == Storage.data.account.charactersCount)
             {
                 ServerSendError(conn, NetworkError.MaxCharacters);
                 return;
@@ -124,30 +119,9 @@ namespace Game.Network
                 return;
             }
             // create
-            ScriptableClass sClass = ScriptableClass.dict[message.classId];
-            Player player = Instantiate(sClass.prefab).GetComponent<Player>();
-            player.name = message.name;
-            player.accId = lobby[conn];
-            player.tribeId = message.tribeId;
-            player.gender = message.gender;
-            if(sClass.defaultEquipments.Length > 0)
-            {
-                player.equipment.Initiate(Storage.data.player.equipmentCount);
-                for(int i = 0; i < sClass.defaultEquipments.Length; i++)
-                {
-                    player.equipment[(int)((EquipmentItem)sClass.defaultEquipments[i].item.data).category] = sClass.defaultEquipments[i];
-                }
-            }
-            //if(player.defaultItems.Length > 0) {
-            //   for(int i = 0; i < player.defaultItems.Length; i++)
-            //        player.own.inventory.Add(new ItemSlot(new Item(player.defaultItems[i].item), player.defaultItems[i].amount));
-            //}
-            player.health = player.healthMax;
-            player.mana = player.manaMax;
-            Database.singleton.CharacterCreate(player);
-            Destroy(player.gameObject);
+            Database.singleton.CharacterCreate(message, lobby[conn]);
             // send to select
-            var msg = await Database.singleton.LoadAvailableCharacters(player.accId);
+            var msg = await Database.singleton.LoadAvailableCharacters(lobby[conn]);
             conn.Send(msg);
             UIManager.data.homePage.UpdateCharacterCount();
         }
@@ -177,7 +151,7 @@ namespace Game.Network
                 if(!lobby.ContainsKey(conn))
                 {
                     float delay = conn.identity != null ? (float)player.remainingLogoutTime : 0;
-                    StartCoroutine(DoServerDisconnect(conn, delay)); // its not a disconnection ??
+                    await DoServerDisconnect(conn, delay, player.transform.position); // its not a disconnection ??
                     lobby[conn] = player.accId;
                     var msg = await Database.singleton.LoadAvailableCharacters(player.accId);
                     conn.Send(msg);
@@ -185,7 +159,7 @@ namespace Game.Network
                 }
             }
         }
-        public override void OnServerDisconnect(NetworkConnection conn)
+        public override async void OnServerDisconnect(NetworkConnection conn)
         {
             Debug.Log("OnServerDisconnect");
             float delay = 0;
@@ -193,16 +167,20 @@ namespace Game.Network
             {
                 Player player = conn.identity.GetComponent<Player>();
                 delay = (float)player.remainingLogoutTime;
+                await DoServerDisconnect(conn, delay, player.transform.position);
+                base.OnServerDisconnect(conn);
             }
-            StartCoroutine(DoServerDisconnect(conn, delay));
         }
-        IEnumerator<WaitForSeconds> DoServerDisconnect(NetworkConnection conn, float delay)
+        async Task DoServerDisconnect(NetworkConnection conn, float remainingLogoutTime, Vector3 position)
         {
-            yield return new WaitForSeconds(delay);
-
+            int delay = (int)(remainingLogoutTime * 1000);
+            if(delay > 0)
+            {
+                await Task.Delay(delay);
+            }
             if (conn.identity != null)
             {
-                Database.singleton.CharacterLogOff(conn.identity.GetComponent<Player>());
+                await Database.singleton.CharacterLogOff(conn.identity.GetComponent<Player>(), position);
                 UIManager.data.homePage.UpdateOnlineCount();
                 print("logedOff: " + conn.identity.name);
             }
@@ -211,14 +189,13 @@ namespace Game.Network
                 lobby.Remove(conn);
                 UIManager.data.homePage.UpdateLobbyCount();
             }
-            base.OnServerDisconnect(conn);
         }
-        void SavePlayers()
+        async void SavePlayers()
         {
-            Database.singleton.CharacterSaveMany(Player.onlinePlayers.Values);
             if (Player.onlinePlayers.Count > 0)
             {
-                Debug.Log("saved " + Player.onlinePlayers.Count + " player(s)");
+                await Database.singleton.CharacterSaveMany(Player.onlinePlayers.Values);
+                Debug.Log($"saved {Player.onlinePlayers.Count} players at {System.DateTime.Now}");
             }
         }
         public override void OnServerAddPlayer(NetworkConnection conn)
@@ -228,11 +205,11 @@ namespace Game.Network
         // helpers
         public static bool IsAllowedCharacterName(string characterName)
         {
-            return characterName.Length <= characterNameMaxLength && Regex.IsMatch(characterName, @"^[a-zA-Zء-ي0-9_]+$");
+            return characterName.Length <= Storage.data.account.usernameMaxLength && Regex.IsMatch(characterName, @"^[a-zA-Zء-ي0-9_]+$");
         }
         public static bool CheckCharacterName(string characterName)
         {
-            return characterName.Length <= characterNameMaxLength &&
+            return characterName.Length <= Storage.data.account.usernameMaxLength &&
                 Regex.IsMatch(characterName, @"^[a-zA-Zء-ي0-9_]+$");
         }
         public static void Quit()
@@ -242,15 +219,6 @@ namespace Game.Network
     #else
             Application.Quit();
     #endif
-        }
-        public override void Awake()
-        {
-            base.Awake();
-            /*foreach(GameObject prefab in spawnPrefabs) {
-                Player player = prefab.GetComponent<Player>();
-                if(player != null)
-                    Storage.data.classPrefabs[player.classInfo.type] = prefab;
-            }*/
         }
     }
 }

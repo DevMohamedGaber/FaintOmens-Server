@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.AI;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System;
 using System.Linq;
 using Mirror;
@@ -20,39 +21,40 @@ namespace Game
         [SerializeField] NetworkNavMeshAgentRubberbanding rubberbanding;
         public ChatComponent chat;
         public PlayerOwnData own;
+        public PlayerStats stats;
         [Header("Player Static variables")]   
-        [Range(0.1f, 1)] public float attackToMoveRangeRatio = 0.8f;
+        //[Range(0.1f, 1)] public float attackToMoveRangeRatio = 0.8f;
         public bool continueCastAfterStunned = true;
     #region Sync Vars
-        [SyncVar] public uint id;
         [SyncVar] public EntityState state = EntityState.Idle;
-        [SyncVar] public PlayerClassData classInfo;
-        [SyncVar] public Gender gender;
-        [SyncVar] public byte cityId;
-        [SyncVar] public PrivacyLevel privacy;
+        [SyncVar] public uint id;
+        [SyncVar] public byte tribeId;
+        [SyncVar] public PlayerClassData classInfo = new PlayerClassData();
+        [SyncVar] public PlayerModelData model = new PlayerModelData();
         [SyncVar] public byte avatar;
         [SyncVar] public byte frame;
-        [SyncVar] public byte tribeId;
-        [SyncVar] public GuildPublicInfo guild;
+        [SyncVar] public GuildPublicInfo guild = new GuildPublicInfo();
         [SyncVar] public uint teamId = 0;
         [SyncVar] public ushort activeTitle = 0;
-        [SyncVar] public bool showWardrop = true;
         [SyncVar] public ActiveMount mount = new ActiveMount();
         [SyncVar] GameObject _nextTarget;
-        public Entity nextTarget {
-            get => _nextTarget != null  ? _nextTarget.GetComponent<Entity>() : null;
+        public Entity nextTarget
+        {
+            get => _nextTarget != null ? _nextTarget.GetComponent<Entity>() : null;
             set => _nextTarget = value != null ? value.gameObject : null;
         }
         [SyncVar] GameObject _activePet;
-        public Pet activePet {
+        public Pet activePet
+        {
             get => _activePet != null  ? _activePet.GetComponent<Pet>() : null;
             set => _activePet = value != null ? value.gameObject : null;
         }
-        public SyncListItemSlot equipment = new SyncListItemSlot();
-        public SyncListWardrop wardrobe = new SyncListWardrop();
     #endregion //Variables
     #region Cached Vars
         public ulong accId;
+        public Tribe tribe;
+        public Guild myGuild;
+        public GuildMember myGuildMember;
         ScriptableTotalGemLevels totalGemLevelBonus;
         ScriptableTotalPlusLevels totalPlusLevelBonus;
         public Vector3 lastLocation;
@@ -80,366 +82,39 @@ namespace Game
         bool isTeleporting;
         List<int> growthEquips;
         bool isWearingGrowthItem => growthEquips.Count > 0;
-        City city => Storage.data.cities[cityId];
+        City city => Storage.data.cities[own.cityId];
         public Vector3 petDestination => transform.position - transform.right * collider.bounds.size.x;
         ushort MaxHonorPerDay => (ushort)(Storage.data.player.dailyHonor + own.vip.data.bonusHonor);
         public bool stillIn7Days => DateTime.FromOADate(own.createdAt).AddDays(7) >= DateTime.Now;
         public double allowedLogoutTime => lastCombatTime + Storage.data.player.combatLogoutDelay;
         public double remainingLogoutTime => NetworkTime.time < allowedLogoutTime ? (allowedLogoutTime - NetworkTime.time) : 0;
     #endregion
-    #region Attributes
-        #region Basics(Health/Mana/Speed)
-        public override int healthMax {
-            get {
-                int result = _healthMax.Get(level) + own.vitality * Storage.data.AP_Vitality + classInfo.hp;
-                for(int i = 0; i < equipment.Count; i++) {
-                    if(equipment[i].amount > 0 && equipment[i].item.data != null)
-                        result += (int)equipment[i].item.GetSocketOfType(BonusType.hp) + equipment[i].item.health;
-                }
-                for(int i = 0; i < own.accessories.Count; i++) {
-                    if(own.accessories[i].amount > 0 && own.accessories[i].item.data != null)
-                        result += (int)own.accessories[i].item.GetSocketOfType(BonusType.hp) + own.accessories[i].item.health;
-                }
-                result += activePet != null ? activePet.healthMax : 0;
-                if(own.pets.Count > 0) {
-                    for(int i = 0; i < own.pets.Count; i++) {
-                        if(own.pets[i].status == SummonableStatus.Saved)
-                            result += own.pets[i].healthMax / 2;
-                    }
-                }
-                if(own.mounts.Count > 0) {
-                    for(int i = 0; i < own.mounts.Count; i++)
-                        result += own.mounts[i].status == SummonableStatus.Saved ? own.mounts[i].healthMax / 2 : own.mounts[i].healthMax;
-                }
-                result += own.militaryRank > -1 ? ScriptableMilitaryRank.dict[own.militaryRank].hp : 0;
-                if(own.titles.Count > 0) {
-                    for(int i = 0; i < own.titles.Count; i++) {
-                        if(ScriptableTitle.dict.TryGetValue(own.titles[i], out ScriptableTitle title))
-                            result += own.titles[i] == activeTitle ? title.hp.active : title.hp.notActive;
-                    }
-                }
-                result += InGuild() ? ScriptableGuildSkill.dict[0].Get(own.guildSkills[0]) * Storage.data.AP_Vitality : 0;
-                return base.healthMax + result;
-            }
-        }
-        public override int healthRecoveryRate => base.healthRecoveryRate + _healthRecoveryRate.Get(level);
-        public override int manaMax {
-            get {
-                int result = _manaMax.Get(level) + own.intelligence * Storage.data.AP_Intelligence_MANA + classInfo.mp;
-                for(int i = 0; i < equipment.Count; i++) {
-                    if(equipment[i].amount > 0 && equipment[i].item.data != null)
-                        result += equipment[i].item.mana;
-                }
-                for(int i = 0; i < own.accessories.Count; i++) {
-                    if(own.accessories[i].amount > 0 && own.accessories[i].item.data != null)
-                        result += own.accessories[i].item.mana;
-                }
-                result += activePet != null ? activePet.manaMax : 0;
-                if(own.pets.Count > 0) {
-                    for(int i = 0; i < own.pets.Count; i++) {
-                        if(own.pets[i].status == SummonableStatus.Saved)
-                            result += own.pets[i].manaMax / 2;
-                    }
-                }
-                if(own.mounts.Count > 0) {
-                    for(int i = 0; i < own.mounts.Count; i++)
-                        result += own.mounts[i].status == SummonableStatus.Saved ? own.mounts[i].manaMax / 2 : own.mounts[i].manaMax;
-                }
-                result += own.militaryRank > -1 ? ScriptableMilitaryRank.dict[own.militaryRank].mp : 0;
-                if(own.titles.Count > 0) {
-                    for(int i = 0; i < own.titles.Count; i++) {
-                        if(ScriptableTitle.dict.TryGetValue(own.titles[i], out ScriptableTitle title))
-                            result += own.titles[i] == activeTitle ? title.mp.active : title.mp.notActive;
-                    }
-                }
-                result += InGuild() ? ScriptableGuildSkill.dict[2].Get(own.guildSkills[2]) * Storage.data.AP_Intelligence_MANA : 0;
-                return base.manaMax + result;
-            }
-        }
+    #region Stats
+        // Health
+        public override int healthMax => stats.GetHealth();
+        public override int healthRecoveryRate => stats.GetHealthRecovery();
+        // Mana
+        public override int manaMax => stats.GetMana();
         public override int manaRecoveryRate => base.manaRecoveryRate + _manaRecoveryRate.Get(level);
+        // Attack
+        public override int p_atk => stats.GetPAtk();
+        public override int m_atk => stats.GetMAtk();
+        // Defense
+        public override int p_def => stats.GetPDef();
+        public override int m_def => stats.GetMDef();
+        // block
+        public override float blockChance => stats.GetBlock();
+        public override float untiBlockChance => stats.GetAntiBlock();
+        // crit
+        public override float critRate => stats.GetCritRate();
+        public override float critDmg => stats.GetCritDmg();
+        public override float antiCrit => stats.GetAntiCrit();
         public override float speed {
             get {
                 return base.speed + _speed.Get(level) + (IsMounted() ? own.mounts[selectedMountIndex].speed : 0);
             }
         }
-        #endregion
-        #region Attack
-        public override int p_atk {
-            get {
-                int result = _p_atk.Get(level) + own.strength * Storage.data.AP_Strength_ATK + classInfo.pAtk;
-                for(int i = 0; i < equipment.Count; i++) {
-                    if(equipment[i].amount > 0 && equipment[i].item.data != null)
-                        result += (int)equipment[i].item.GetSocketOfType(BonusType.pAtk) + equipment[i].item.pAtk;
-                }
-                for(int i = 0; i < own.accessories.Count; i++) {
-                    if(own.accessories[i].amount > 0 && own.accessories[i].item.data != null)
-                        result += (int)own.accessories[i].item.GetSocketOfType(BonusType.pAtk) + own.accessories[i].item.pAtk;
-                }
-                result += activePet != null ? activePet.p_atk : 0;
-                if(own.pets.Count > 0) {
-                    for(int i = 0; i < own.pets.Count; i++) {
-                        if(own.pets[i].status == SummonableStatus.Saved)
-                            result += own.pets[i].p_atk / 2;
-                    }
-                }
-                if(own.mounts.Count > 0) {
-                    for(int i = 0; i < own.mounts.Count; i++)
-                        result += own.mounts[i].status == SummonableStatus.Saved ? own.mounts[i].p_atk / 2 : own.mounts[i].p_atk;
-                }
-                result += classType == DamageType.Physical ? ScriptableMilitaryRank.dict[own.militaryRank].atk : 0;
-                if(classType == DamageType.Physical && own.titles.Count > 0) {
-                    for(int i = 0; i < own.titles.Count; i++)
-                        if(ScriptableTitle.dict.TryGetValue(own.titles[i], out ScriptableTitle title))
-                            result += own.titles[i] == activeTitle ? title.pAtk.active : title.pAtk.notActive;
-                }
-                result += InGuild() ? ScriptableGuildSkill.dict[1].Get(own.guildSkills[1]) * Storage.data.AP_Strength_ATK : 0;
-                return base.p_atk + result;
-            }
-        }
-        public override int m_atk {
-            get {
-                int result = _m_atk.Get(level) + own.intelligence * Storage.data.AP_Intelligence_ATK + classInfo.mAtk;
-                for(int i = 0; i < equipment.Count; i++) {
-                    if(equipment[i].amount > 0 && equipment[i].item.data != null)
-                        result += (int)equipment[i].item.GetSocketOfType(BonusType.mAtk) + equipment[i].item.mAtk;
-                }
-                for(int i = 0; i < own.accessories.Count; i++) {
-                    if(own.accessories[i].amount > 0 && own.accessories[i].item.data != null)
-                        result += (int)own.accessories[i].item.GetSocketOfType(BonusType.mAtk) + own.accessories[i].item.mAtk;
-                }
-                result += activePet != null ? activePet.m_atk : 0;
-                if(own.pets.Count > 0) {
-                    for(int i = 0; i < own.pets.Count; i++) {
-                        if(own.pets[i].status == SummonableStatus.Saved)
-                            result += own.pets[i].m_atk / 2;
-                    }
-                }
-                if(own.mounts.Count > 0) {
-                    for(int i = 0; i < own.mounts.Count; i++)
-                        result += own.mounts[i].status == SummonableStatus.Saved ? own.mounts[i].m_atk / 2 : own.mounts[i].m_atk;
-                }
-                result += classType == DamageType.Magical ? ScriptableMilitaryRank.dict[own.militaryRank].atk : 0;
-                if(classType == DamageType.Magical && own.titles.Count > 0) {
-                    for(int i = 0; i < own.titles.Count; i++)
-                        if(ScriptableTitle.dict.TryGetValue(own.titles[i], out ScriptableTitle title))
-                            result += own.titles[i] == activeTitle ? title.mAtk.active : title.mAtk.notActive;
-                }
-                result += InGuild() ? ScriptableGuildSkill.dict[2].Get(own.guildSkills[2]) * Storage.data.AP_Intelligence_ATK : 0;
-                return base.m_atk + result;
-            }
-        }
-        #endregion
-        #region Defense
-        public override int p_def {
-            get {
-                int result = _p_def.Get(level) + own.endurance * Storage.data.AP_Endurance + own.strength * Storage.data.AP_Strength_DEF
-                            + classInfo.pDef;
-                for(int i = 0; i < equipment.Count; i++) {
-                    if(equipment[i].amount > 0 && equipment[i].item.data != null)
-                        result += (int)equipment[i].item.GetSocketOfType(BonusType.pDef) + equipment[i].item.pDef;
-                }
-                for(int i = 0; i < own.accessories.Count; i++) {
-                    if(own.accessories[i].amount > 0 && own.accessories[i].item.data != null)
-                        result += (int)own.accessories[i].item.GetSocketOfType(BonusType.pDef) + own.accessories[i].item.pDef;
-                }
-                result += activePet != null ? activePet.p_def : 0;
-                if(own.pets.Count > 0) {
-                    for(int i = 0; i < own.pets.Count; i++) {
-                        if(own.pets[i].status == SummonableStatus.Saved)
-                            result += own.pets[i].p_def / 2;
-                    }
-                }
-                if(own.mounts.Count > 0) {
-                    for(int i = 0; i < own.mounts.Count; i++)
-                        result += own.mounts[i].status == SummonableStatus.Saved ? own.mounts[i].p_def / 2 : own.mounts[i].p_def;
-                }
-                result += classType == DamageType.Physical ? ScriptableMilitaryRank.dict[own.militaryRank].def : 0;
-                if(classType == DamageType.Physical && own.titles.Count > 0) {
-                    for(int i = 0; i < own.titles.Count; i++)
-                        if(ScriptableTitle.dict.TryGetValue(own.titles[i], out ScriptableTitle title))
-                            result += own.titles[i] == activeTitle ? title.pDef.active : title.pDef.notActive;
-                }
-                result += InGuild() ? ScriptableGuildSkill.dict[1].Get(own.guildSkills[1]) * Storage.data.AP_Strength_DEF +
-                            ScriptableGuildSkill.dict[3].Get(own.guildSkills[3]) * Storage.data.AP_Endurance : 0;
-                return base.p_def + result;
-            }
-        }
-        public override int m_def {
-            get {
-                int result = _m_def.Get(level) + own.endurance * Storage.data.AP_Endurance + own.intelligence * Storage.data.AP_Intelligence_DEF
-                            + classInfo.mDef;
-                for(int i = 0; i < equipment.Count; i++) {
-                    if(equipment[i].amount > 0 && equipment[i].item.data != null)
-                        result += (int)equipment[i].item.GetSocketOfType(BonusType.mDef) + equipment[i].item.mDef;
-                }
-                for(int i = 0; i < own.accessories.Count; i++) {
-                    if(own.accessories[i].amount > 0 && own.accessories[i].item.data != null)
-                        result += (int)own.accessories[i].item.GetSocketOfType(BonusType.mDef) + own.accessories[i].item.mDef;
-                }
-                result += activePet != null ? activePet.m_def : 0;
-                if(own.pets.Count > 0) {
-                    for(int i = 0; i < own.pets.Count; i++) {
-                        if(own.pets[i].status == SummonableStatus.Saved)
-                            result += own.pets[i].m_def / 2;
-                    }
-                }
-                if(own.mounts.Count > 0) {
-                    for(int i = 0; i < own.mounts.Count; i++)
-                        result += own.mounts[i].status == SummonableStatus.Saved ? own.mounts[i].m_def / 2 : own.mounts[i].m_def;
-                }
-                result += classType == DamageType.Magical ? ScriptableMilitaryRank.dict[own.militaryRank].def : 0;
-                if(classType == DamageType.Magical && own.titles.Count > 0) {
-                    for(int i = 0; i < own.titles.Count; i++)
-                        if(ScriptableTitle.dict.TryGetValue(own.titles[i], out ScriptableTitle title))
-                            result += own.titles[i] == activeTitle ? title.mDef.active : title.mDef.notActive;
-                }
-                result += InGuild() ? ScriptableGuildSkill.dict[2].Get(own.guildSkills[2]) * Storage.data.AP_Intelligence_DEF +
-                            ScriptableGuildSkill.dict[3].Get(own.guildSkills[3]) * Storage.data.AP_Endurance : 0;
-                return base.m_def + result;
-            }
-        }
-        #endregion
-        #region Block
-        public override float blockChance {
-            get {
-                float result = _blockChance.Get(level) + classInfo.block;
-                for(int i = 0; i < equipment.Count; i++) {
-                    if(equipment[i].amount > 0 && equipment[i].item.data != null)
-                        result += equipment[i].item.GetSocketOfType(BonusType.block) + equipment[i].item.block;
-                }
-                for(int i = 0; i < own.accessories.Count; i++) {
-                    if(own.accessories[i].amount > 0 && own.accessories[i].item.data != null)
-                        result += own.accessories[i].item.GetSocketOfType(BonusType.block) + own.accessories[i].item.block;
-                }
-                result += activePet != null ? activePet.blockChance : 0;
-                if(own.pets.Count > 0) {
-                    for(int i = 0; i < own.pets.Count; i++) {
-                        if(own.pets[i].status == SummonableStatus.Saved)
-                            result += own.pets[i].block / 2;
-                    }
-                }
-                if(own.mounts.Count > 0) {
-                    for(int i = 0; i < own.mounts.Count; i++)
-                        result += own.mounts[i].status == SummonableStatus.Saved ? own.mounts[i].blockChance / 2 : own.mounts[i].blockChance;
-                }
-                result= own.militaryRank > -1 ? ScriptableMilitaryRank.dict[own.militaryRank].block : 0;
-                if(own.titles.Count > 0) {
-                    for(int i = 0; i < own.titles.Count; i++)
-                        if(ScriptableTitle.dict.TryGetValue(own.titles[i], out ScriptableTitle title))
-                            result += own.titles[i] == activeTitle ? title.block.active : title.block.notActive;
-                }
-                result += InGuild() ? (float)ScriptableGuildSkill.dict[5].Get(own.guildSkills[5]) * .1f : 0;
-                return base.blockChance + result;
-            }
-        }
-        public override float untiBlockChance {
-            get {
-                float result = _untiBlockChance.Get(level) + classInfo.untiBlock;
-                result += activePet != null ? activePet.untiBlockChance : 0;
-                if(own.pets.Count > 0) {
-                    for(int i = 0; i < own.pets.Count; i++) {
-                        if(own.pets[i].status == SummonableStatus.Saved)
-                            result += own.pets[i].antiBlock / 2;
-                    }
-                }
-                if(own.mounts.Count > 0) {
-                    for(int i = 0; i < own.mounts.Count; i++)
-                        result += own.mounts[i].status == SummonableStatus.Saved ? own.mounts[i].untiBlockChance / 2 : own.mounts[i].untiBlockChance;
-                }
-                result += own.militaryRank > -1 ? ScriptableMilitaryRank.dict[own.militaryRank].untiBlock : 0;
-                if(own.titles.Count > 0) {
-                    for(int i = 0; i < own.titles.Count; i++)
-                        if(ScriptableTitle.dict.TryGetValue(own.titles[i], out ScriptableTitle title))
-                            result += own.titles[i] == activeTitle ? title.antiBlock.active : title.antiBlock.notActive;
-                }
-                return base.untiBlockChance + result;
-            }
-        }
-        #endregion
-        #region Critical
-        public override float critRate {
-            get {
-                float result = _critRate.Get(level) + classInfo.crit;
-                for(int i = 0; i < equipment.Count; i++) {
-                    if(equipment[i].amount > 0 && equipment[i].item.data != null)
-                        result += equipment[i].item.GetSocketOfType(BonusType.crit) + equipment[i].item.critRate;
-                }
-                for(int i = 0; i < own.accessories.Count; i++) {
-                    if(own.accessories[i].amount > 0 && own.accessories[i].item.data != null)
-                        result += own.accessories[i].item.GetSocketOfType(BonusType.crit) + own.accessories[i].item.critRate;
-                }
-                result += activePet != null ? activePet.critRate : 0;
-                if(own.pets.Count > 0) {
-                    for(int i = 0; i < own.pets.Count; i++) {
-                        if(own.pets[i].status == SummonableStatus.Saved)
-                            result += own.pets[i].critRate / 2;
-                    }
-                }
-                if(own.mounts.Count > 0) {
-                    for(int i = 0; i < own.mounts.Count; i++)
-                        result += own.mounts[i].status == SummonableStatus.Saved ? own.mounts[i].criticalChance / 2 : own.mounts[i].criticalChance;
-                }
-                result += own.militaryRank > -1 ? ScriptableMilitaryRank.dict[own.militaryRank].crit : 0;
-                if(own.titles.Count > 0) {
-                    for(int i = 0; i < own.titles.Count; i++)
-                        if(ScriptableTitle.dict.TryGetValue(own.titles[i], out ScriptableTitle title))
-                            result += own.titles[i] == activeTitle ? title.critRate.active : title.critRate.notActive;
-                }
-                result += InGuild() ? (float)ScriptableGuildSkill.dict[4].Get(own.guildSkills[4]) * .1f : 0;
-                return base.critRate + result;
-            }
-        }
-        public override float critDmg {
-            get {
-                float result = _critDmg.Get(level) + classInfo.critDmg;
-                result += activePet != null ? activePet.critDmg : 0;
-                if(own.pets.Count > 0) {
-                    for(int i = 0; i < own.pets.Count; i++) {
-                        if(own.pets[i].status == SummonableStatus.Saved)
-                            result += own.pets[i].critDmg / 2;
-                    }
-                }
-                if(own.mounts.Count > 0) {
-                    for(int i = 0; i < own.mounts.Count; i++)
-                        result += own.mounts[i].status == SummonableStatus.Saved ? own.mounts[i].criticalRate / 2 : own.mounts[i].criticalRate;
-                }
-                result += own.militaryRank > -1 ? ScriptableMilitaryRank.dict[own.militaryRank].critDmg : 0;
-                if(own.titles.Count > 0) {
-                    for(int i = 0; i < own.titles.Count; i++)
-                        if(ScriptableTitle.dict.TryGetValue(own.titles[i], out ScriptableTitle title))
-                            result += own.titles[i] == activeTitle ? title.critDmg.active : title.critDmg.notActive;
-                }
-                return base.critDmg + result;
-            }
-        }
-        public override float antiCrit {
-            get {
-                float result = _antiCrit.Get(level) + classInfo.untiCrit;
-                result += activePet != null ? activePet.antiCrit : 0;
-                if(own.pets.Count > 0) {
-                    for(int i = 0; i < own.pets.Count; i++) {
-                        if(own.pets[i].status == SummonableStatus.Saved)
-                            result += own.pets[i].antiCrit / 2;
-                    }
-                }
-                if(own.mounts.Count > 0) {
-                    for(int i = 0; i < own.mounts.Count; i++)
-                        result += own.mounts[i].status == SummonableStatus.Saved ? own.mounts[i].untiCriticalChance / 2 : own.mounts[i].untiCriticalChance;
-                }
-                result += own.militaryRank > -1 ? ScriptableMilitaryRank.dict[own.militaryRank].untiCrit : 0;
-                if(own.titles.Count > 0) {
-                    for(int i = 0; i < own.titles.Count; i++)
-                        if(ScriptableTitle.dict.TryGetValue(own.titles[i], out ScriptableTitle title))
-                            result += own.titles[i] == activeTitle ? title.antiCrit.active : title.antiCrit.notActive;
-                }
-                return base.antiCrit + result;
-            }
-        }
-        #endregion
-        #region Helpers
-        public override uint battlepower => Convert.ToUInt32(healthMax + manaMax + m_atk + p_atk + m_def + p_def + 
-        (blockChance + untiBlockChance + critRate + critDmg + antiCrit + untiStunChance) * 100);
-        #endregion
+        public override uint battlepower => stats.GetBattleRate().Result;
     #endregion //Attributes
     #region Basic Functions and Helpers
         void CheckForNewFeatureOpened() {
@@ -472,36 +147,110 @@ namespace Game
             }
             return false;
         }
+        public void UnregisterFromAnyOccupation()
+        {
+            if(own.occupation != PlayerOccupation.None)
+            {
+                if(own.occupation == PlayerOccupation.RegisteredArena1v1)
+                {
+                    ArenaSystem.UnRegister1vs1(this);
+                }
+                else if(own.occupation == PlayerOccupation.ReadyArena1v1)
+                {
+                    ArenaSystem.RefuseMatch1v1(this);
+                }
+                else if(own.occupation == PlayerOccupation.InMatchArena1v1)
+                {
+                    ArenaSystem.LeaveMatch1v1(this);
+                }
+            }
+            if(IsTrading())
+            {
+                TradeSystem.Cancel(this);
+            }
+        }
+        public async Task RefreshModel()
+        {
+            await Task.Run(() =>
+            {
+                PlayerModelData modelData = model;
+                if(own.showClothing)
+                {
+                    // assigned clothing
+                    for(int i = 0; i < own.clothing.Count; i++)
+                    {
+                        if(own.clothing[i].isUsed)
+                        {
+                            modelData.AddTo(own.clothing[i].data.category, own.clothing[i].id);
+                        }
+                    }
+                    // not assigned clothing
+                    if(modelData.body.id == 0 && !own.equipment[(int)EquipmentsCategory.Armor].isEmpty)
+                    {
+                        modelData.AddTo(EquipmentsCategory.Armor, own.equipment[(int)EquipmentsCategory.Armor].item.id);
+                    }
+                    if(modelData.weapon.id == 0 && !own.equipment[(int)EquipmentsCategory.Weapon].isEmpty)
+                    {
+                        modelData.AddTo(EquipmentsCategory.Weapon, own.equipment[(int)EquipmentsCategory.Weapon].item.id);
+                    }
+                }
+                else
+                {
+                    if(!own.equipment[(int)EquipmentsCategory.Armor].isEmpty)
+                    {
+                        modelData.AddTo(EquipmentsCategory.Armor, own.equipment[(int)EquipmentsCategory.Armor].item.id);
+                    }
+                    if(!own.equipment[(int)EquipmentsCategory.Weapon].isEmpty)
+                    {
+                        modelData.AddTo(EquipmentsCategory.Weapon, own.equipment[(int)EquipmentsCategory.Weapon].item.id);
+                    }
+                }
+                model = modelData;
+            });
+        }
     #endregion //Basic Functions
     #region General Server Functions
-        protected override void Start()
-        {
-            base.Start();
-            onlinePlayers[id] = this;
-            growthEquips = new List<int>();
-            //for(int i = 0; i < buffs.Count; ++i)
-                //if(buffs[i].BuffTimeRemaining() > 0)
-                    //buffs[i].data.SpawnEffect(this, this);
-
-            SetGuildOnline(0);
-            UIManager.data.homePage.UpdateOnlineCount();
-        }
         void Update() {
             state = UpdateServer();
         }
-        public override void OnStartServer() {
+        public override async void OnStartServer()
+        {
             base.OnStartServer();
-            if(own.pets.Count > 0) {
-                for(int i = 0; i < own.pets.Count; i++) {
-                    if(activePet != null) break;
-                    if(own.pets[i].status == SummonableStatus.Deployed) {
+
+            onlinePlayers[id] = this;
+            //enabled = true;
+            growthEquips = new List<int>();
+
+            TribeSystem.OnlineTribesMembers[tribeId].Add(id);
+
+            if(own.pets.Count > 0)
+            {
+                for(int i = 0; i < own.pets.Count; i++)
+                {
+                    if(activePet != null)
+                    {
+                        break;
+                    }
+                    if(own.pets[i].status == SummonableStatus.Deployed)
+                    {
                         PetSystem.Summon(this, own.pets[i].id);
                         break;
                     }
                 }
             }
             if(InGuild())
+            {
+                SetGuildOnline(0);
                 StartUpdatePlayerBRInGuildInfo();
+                if(GuildSystem.guilds.TryGetValue(guild.id, out Guild guildData))
+                {
+                    myGuild = guildData;
+                    myGuildMember = GuildSystem.GetMemberById(guild.id, id);
+                    own.guildRank = myGuildMember.rank;
+                }
+            }
+            UIManager.data.homePage.UpdateOnlineCount();
+            await RefreshModel();
         }
         public void NextAction(double nextAction = 1) => own.nextRiskyActionTime += nextAction;
         public bool CanTakeAction() {
@@ -887,7 +636,7 @@ namespace Game
             if(amount < 1) 
                 return false;
             if(InGuild()) {
-                own.guildContribution += amount;
+                //own.guildContribution += amount;
                 //if(inprogressAchievements.addGConts != null && inprogressAchievements.addGConts.IsFulfilled(this))
                 //    inprogressAchievements.addGConts.OnAchieved(this);
                 return true;
@@ -898,7 +647,7 @@ namespace Game
             if(amount < 1) 
                 return false;
             if(InGuild()) {
-                own.guildContribution -= amount;
+                //own.guildContribution -= amount;
                 //if(inprogressAchievements.useGConts != null && inprogressAchievements.useGConts.IsFulfilled(this))
                 //    inprogressAchievements.useGConts.OnAchieved(this);
                 return true;
@@ -1286,12 +1035,16 @@ namespace Game
             else
                 TargetNotify("You're already in a guild.");
         }
-        [Command] public void CmdCreateGuild(string guildName) => GuildSystem.CreateGuild(this, guildName);
         [Command] public void CmdSendJoinRequestToGuild(uint guildId) {
             if(!InGuild())
                 GuildSystem.SendJoinRequest(this, guildId);
             else 
                 TargetNotify("you are already in a guild.");
+        }
+        [Command] public void CmdCreateGuild(string guildName) => GuildSystem.CreateGuild(this, guildName);
+        [Command] public void CmdGetGuildData()
+        {
+
         }
         [Command] public void CmdSendGuildInvitationToTarget() {
             if(target is Player) 
@@ -1303,15 +1056,21 @@ namespace Game
         }
         [Server] public void SendGuildInvitation(uint playerId) {
             if(!InGuild())
+            {
                 TargetNotify("you're not in guild.");
                 return;
+            }
             if(!guild.data.CanInvite(id, playerId))
+            {
                 TargetNotify("you can't invite this player.");
                 return;
+            }
             if(Player.onlinePlayers.TryGetValue(playerId, out Player player)) {
                 if(player.InGuild())
+                {
                     TargetNotify("this player is Already in guild.");
                     return;
+                }
                 player.AddGuildInvitation(new GuildInvitation {
                     id = guild.id,
                     name = guild.name,
@@ -1345,12 +1104,18 @@ namespace Game
         }
         [Command] public void CmdGuildInviteAccept(int index) {
             if(InGuild())
+            {
                 TargetNotify("you're already in a guild.");
                 return;
+            }
                 
             if(guildInvitations.Length > index)
+            {
                 if(GuildSystem.AddToGuild(guildInvitations[index].id, guildInvitations[index].senderId, this))
+                {
                     RemoveGuildInvitation(index);
+                }
+            }
             else
                 TargetNotify("invitation not found.");
                 return;
@@ -1406,8 +1171,10 @@ namespace Game
         }
         [Command] public void CmdTransfarMasterRank(uint newMaster) {
             if(InGuild())
+            {
                 GuildSystem.TransfarMastership(guild.id, id, newMaster);
                 return;
+            }
             Notify("you're not in a guild.", "انت لست بتحالف");
         }
         [Server] public void StartUpdatePlayerBRInGuildInfo() => StartCoroutine(GuildSystem.UpdatePlayerBRInGuildInfo(id, guild.id));
@@ -1815,26 +1582,38 @@ namespace Game
             if(a.item.id > b.item.id) return -1;
             return 0;
         }
-        [Command] public void CmdOpenInventorySlots(int slotsCount) {
+        [Command] public void CmdOpenInventorySlots(int slotsCount)
+        {
             int stoneIndex = GetInventoryIndex(5455);
             ItemSlot stones = new ItemSlot();
-            if(stoneIndex > -1) stones = own.inventory[stoneIndex];
+            if(stoneIndex > -1)
+            {
+                stones = own.inventory[stoneIndex];
+            }
             else
+            {
                 TargetNotify("You don't have any of the Materials required.");
                 return;
+            }
 
             if(stones.amount < slotsCount)
+            {
                 TargetNotify("You don't have enough Keys.");
                 return;
+            }
 
             byte newInventorySize = (byte)(own.inventorySize + slotsCount);
-            if(newInventorySize > Storage.data.player.maxInventorySize) { // if (newInventorySize) more that max slots return to max
+            if(newInventorySize > Storage.data.player.maxInventorySize)
+            { // if (newInventorySize) more that max slots return to max
                 slotsCount -= newInventorySize - Storage.data.player.maxInventorySize;
                 newInventorySize = Storage.data.player.maxInventorySize;
             }
 
             own.inventorySize = newInventorySize;
-            for(int i = 0; i < slotsCount; i++) own.inventory.Add(new ItemSlot());
+            for(int i = 0; i < slotsCount; i++)
+            {
+                own.inventory.Add(new ItemSlot());
+            }
             stones.DecreaseAmount((uint)slotsCount);
             own.inventory[stoneIndex] = stones;
             TargetNotify($"${slotsCount} Slots has been Unlocked.");
@@ -1854,16 +1633,22 @@ namespace Game
         }
         [Command] public void CmdBuyItemsFromInventoryShop(int index, uint count) {
             if(health < 1)
+            {
                 TargetNotify("You have to be alive to buy from the shop.");
                 return;
+            }
 
             if(index < 0 || index > Storage.data.inventoryShopItems.Length)
+            {
                 TargetNotify("You have to select item from the shop.");
                 return;
+            }
 
             if(count < 1)
+            {
                 TargetNotify("You have to select at least 1 item.");
                 return;
+            }
 
             Item item = Storage.data.inventoryShopItems[index];
             if (own.gold >= (count * item.data.buyPrice)) {
@@ -1874,16 +1659,20 @@ namespace Game
             }
             TargetNotify("You don't have enough Gold.");
         }
-        [Server] public void SwapInventoryEquip(int inventoryIndex, int equipmentIndex) {
+        [Server] public void SwapInventoryEquip(int inventoryIndex, int equipmentIndex)
+        {
             // validate: make sure that the slots actually exist in the inventory and in the equipment
             if (InventoryOperationsAllowed() && 0 <= inventoryIndex && inventoryIndex < own.inventory.Count &&
-                0 <= equipmentIndex && equipmentIndex < equipment.Count) {
+                0 <= equipmentIndex && equipmentIndex < own.equipment.Count)
+                {
                 // item slot has to be empty (unequip) or equipable
                 ItemSlot slot = own.inventory[inventoryIndex];
-                if(slot.amount == 0 || slot.item.data is EquipmentItem itemData && itemData.CanEquip(this, inventoryIndex, equipmentIndex)) {
+                if(slot.amount == 0 || slot.item.data is EquipmentItem itemData 
+                    && itemData.CanEquip(this, inventoryIndex, equipmentIndex))
+                {
                     // swap them
-                    ItemSlot temp = equipment[equipmentIndex];
-                    equipment[equipmentIndex] = slot;
+                    ItemSlot temp = own.equipment[equipmentIndex];
+                    own.equipment[equipmentIndex] = slot;
                     own.inventory[inventoryIndex] = temp;
                     UpdateEquipmentInfo();
                 }
@@ -1898,9 +1687,9 @@ namespace Game
         [Server] public void UpdateEquipmentInfo() {
             // gems
             int gemLevel = 0;
-            for(int i = 0; i < equipment.Count; i++) {
-                if(!equipment[i].isEmpty) {
-                    gemLevel += equipment[i].item.GetTotalGemLevels();
+            for(int i = 0; i < own.equipment.Count; i++) {
+                if(!own.equipment[i].isEmpty) {
+                    gemLevel += own.equipment[i].item.GetTotalGemLevels();
                 }
             }
             for(int i = 0; i < own.accessories.Count; i++) {
@@ -1911,9 +1700,9 @@ namespace Game
             totalGemLevelBonus = ScriptableTotalGemLevels.GetBonus(gemLevel);
             // pluses
             int plusLevel = 0;
-            for(int i = 0; i < equipment.Count; i++) {
-                if(!equipment[i].isEmpty) {
-                    plusLevel += equipment[i].item.plus;
+            for(int i = 0; i < own.equipment.Count; i++) {
+                if(!own.equipment[i].isEmpty) {
+                    plusLevel += own.equipment[i].item.plus;
                 }
             }
             for(int i = 0; i < own.accessories.Count; i++) {
@@ -1924,26 +1713,26 @@ namespace Game
             totalPlusLevelBonus = ScriptableTotalPlusLevels.GetBonus(plusLevel);
             // Growth items
             growthEquips.Clear();
-            for(int i = 0; i < equipment.Count; i++) {
-                if(!equipment[i].isEmpty && equipment[i].item.data is EquipmentItem && equipment[i].item.quality.isGrowth) {
+            for(int i = 0; i < own.equipment.Count; i++) {
+                if(!own.equipment[i].isEmpty && own.equipment[i].item.data is EquipmentItem && own.equipment[i].item.quality.isGrowth) {
                     growthEquips.Add(i);
                 }
             }
             for(int i = 0; i < own.accessories.Count; i++) {
                 if(!own.accessories[i].isEmpty && own.accessories[i].item.data is EquipmentItem && own.accessories[i].item.quality.isGrowth) {
-                    growthEquips.Add(equipment.Count + i);
+                    growthEquips.Add(own.equipment.Count + i);
                 }
             }
         }
         [Server] public void ApplyDamageToEquipments(int dmg) {
             if(dmg > 1) {
-                int randomSlot = Utils.random.Next(0, (equipment.Count + Storage.data.player.accessoriesCount) - 1);
-                if(randomSlot < equipment.Count) {
-                    if(!equipment[randomSlot].isEmpty)
-                        equipment[randomSlot].item.ApplyDamage(dmg);
+                int randomSlot = Utils.random.Next(0, (own.equipment.Count + Storage.data.player.accessoriesCount) - 1);
+                if(randomSlot < own.equipment.Count) {
+                    if(!own.equipment[randomSlot].isEmpty)
+                        own.equipment[randomSlot].item.ApplyDamage(dmg);
                 }
                 else {
-                    randomSlot -= equipment.Count;
+                    randomSlot -= own.equipment.Count;
                     if(!own.accessories[randomSlot].isEmpty)
                         own.accessories[randomSlot].item.ApplyDamage(dmg);
                 }
@@ -1952,28 +1741,28 @@ namespace Game
         [Server] public void AddExpToRandomGrowthEquipment(int dmg, int entityLevel) {
             ushort exp = (ushort)BalanceExpReward((uint)dmg, level, entityLevel, Storage.data.player.skillExpToLevelDiff);
             if(growthEquips.Count == 1) {
-                if(growthEquips[0] < equipment.Count) {
-                    ItemSlot slot = equipment[growthEquips[0]];
+                if(growthEquips[0] < own.equipment.Count) {
+                    ItemSlot slot = own.equipment[growthEquips[0]];
                     slot.item.quality.AddExp(exp);
-                    equipment[growthEquips[0]] = slot;
+                    own.equipment[growthEquips[0]] = slot;
                 }
                 else {
-                    ItemSlot slot = own.accessories[growthEquips[0] - equipment.Count];
+                    ItemSlot slot = own.accessories[growthEquips[0] - own.equipment.Count];
                     slot.item.quality.AddExp(exp);
-                    own.accessories[growthEquips[0] - equipment.Count] = slot;
+                    own.accessories[growthEquips[0] - own.equipment.Count] = slot;
                 }
             }
             else {
                 int randIndex = Utils.random.Next(0, growthEquips.Count - 1);
-                if(growthEquips[randIndex] < equipment.Count) {
-                    ItemSlot slot = equipment[growthEquips[randIndex]];
+                if(growthEquips[randIndex] < own.equipment.Count) {
+                    ItemSlot slot = own.equipment[growthEquips[randIndex]];
                     slot.item.quality.AddExp(exp);
-                    equipment[growthEquips[randIndex]] = slot;
+                    own.equipment[growthEquips[randIndex]] = slot;
                 }
                 else {
-                    ItemSlot slot = own.accessories[growthEquips[randIndex] - equipment.Count];
+                    ItemSlot slot = own.accessories[growthEquips[randIndex] - own.equipment.Count];
                     slot.item.quality.AddExp(exp);
-                    own.accessories[growthEquips[randIndex] - equipment.Count] = slot;
+                    own.accessories[growthEquips[randIndex] - own.equipment.Count] = slot;
                 }
             }
         }
@@ -1981,12 +1770,7 @@ namespace Game
     #region Wardrobe
         [Command] public void CmdWardrobeEquip(ushort wardrobeId) => WardrobeSystem.Equip(this, wardrobeId);
         [Command] public void CmdWardrobeUnEquip(int index) => WardrobeSystem.Unequip(this, index);
-        [Command] public void CmdWardrobeSwitchVisibility() {
-            if(!CanTakeAction())
-                return;
-            showWardrop = !showWardrop;
-            NextAction(.5d);
-        }
+        [Command] public void CmdWardrobeSwitchVisibility() => WardrobeSystem.SwitchVisibility(this);
         [Command] public void CmdWardrobeSynthesize(int mainIndex, bool isEquiped, int otherIndex, int blessIndex) 
                                 => WardrobeSystem.Synthesize(this, mainIndex, isEquiped, otherIndex, blessIndex);
     #endregion
@@ -2158,13 +1942,13 @@ namespace Game
             if(CanTeleportTo(targetCity)) {
                 Hide();
                 enabled = false;
-                if(fromEvent || targetCity != cityId) {
+                if(fromEvent || targetCity != own.cityId) {
                     isTeleporting = true;
-                    cityId = (byte)targetCity;
+                    own.cityId = (byte)targetCity;
                 }
                 target = null;
                 Warp(targetLocation == Vector3.zero ? city.StartingPoint() : targetLocation);
-                if(!fromEvent && targetCity == cityId) {
+                if(!fromEvent && targetCity == own.cityId) {
                     enabled = true;
                     Show();
                 }
@@ -2213,7 +1997,7 @@ namespace Game
         }
         [Server] public void TeleportToLastLocation(bool fromEvent) {
             if(lastLocation != Vector3.zero) {
-                TeleportTo(cityId ,lastLocation, fromEvent);
+                TeleportTo(own.cityId ,lastLocation, fromEvent);
                 lastLocation = Vector3.zero;
             }
         }
@@ -2322,8 +2106,10 @@ namespace Game
         [Command] public void CmdBuyItemsFromMall(int categoryIndex, int itemIndex, uint amount) {
             if(categoryIndex < 0 || categoryIndex > Storage.data.ItemMallContent.Length || amount < 1 || 
                 itemIndex < 0 || itemIndex > Storage.data.ItemMallContent[categoryIndex].items.Length)
+            {
                 TargetNotify("Please Select an Item");
                 return;
+            }
             Item item = Storage.data.ItemMallContent[categoryIndex].items[itemIndex];
             bool usingBound = Storage.data.ItemMallContent[categoryIndex].bound;
             bool hasPrice = !usingBound ? (own.diamonds >= item.data.itemMallPrice * amount) :
@@ -2351,7 +2137,8 @@ namespace Game
         [Command] public void CmdPetUpgrade(ushort petId) => PetSystem.Upgrade(this, petId);
         [Command] public void CmdPetStarUp(ushort petId) => PetSystem.StarUp(this, petId);
         [Command] public void CmdPetTrain(ushort petId) => PetSystem.Train(this, petId);
-        [Command] public void CmdPetChangeExpShare() {
+        [Command] public void CmdPetChangeExpShare()
+        {
             if(!CanTakeAction())
                 return;
             own.shareExpWithPet = !own.shareExpWithPet;
@@ -2474,13 +2261,17 @@ namespace Game
     [Command] public void CmdActivateTitle(int itemIndex) {
         ItemSlot slot = own.inventory[itemIndex];
         if(slot.amount < 1)
+        {
             Notify("Item Not Found.");
             return;
+        }
 
         int titleId = ((TitleItem)slot.item.data).titleId;
         if(own.titles.FindIndex(t => t == titleId) != -1)
+        {
             Notify("Title already activated.");
             return;
+        }
 
         slot.DecreaseAmount(1);
         own.inventory[itemIndex] = slot;
@@ -2488,11 +2279,15 @@ namespace Game
     }
     [Command] public void CmdSetActiveTitle(int titleId) {
         if(titleId == activeTitle)
+        {
             Notify("This Title is Already Active.");
             return;
+        }
         if(!own.titles.Contains((ushort)titleId))
+        {
             Notify("This Title is not Activated.");
             return;
+        }
         activeTitle = (ushort)titleId;
     }
     #endregion
@@ -2506,14 +2301,18 @@ namespace Game
         }
         PreviewPlayerData info = PreviewSystem.GetPlayerInfo(playerId);
         if(info.status)
+        {
             TargetShowPlayerPreview(info);
             return;
+        }
         Notify("Player data not found.", "لم نجد بيانات اللاعب.");
     } 
     [Command] public void CmdPreviewTargetPlayerInfo() {
         if(target == null || !(target is Player))
+        {
             Notify("Please select a player first.", "برجاء اختيار هدف اولا.");
             return;
+        }
         PreviewPlayerInfo(((Player)target).id);
     }
     [TargetRpc] public void TargetShowPlayerPreview(PreviewPlayerData info) {}
@@ -2570,7 +2369,7 @@ namespace Game
         string ActionRespawn() {
             if(respawnRequested < 0 || respawnRequested > 2) return "DEAD";
             if(respawnRequested == 0) { // in city
-                Warp(Storage.data.cities[cityId].StartingPoint());
+                Warp(Storage.data.cities[own.cityId].StartingPoint());
                 Revive(0.5f);
                 respawnRequested = -1;
                 own.reviveTime = 0;
@@ -2745,28 +2544,41 @@ namespace Game
                 Notify("This player isn't a friend", "هذا اللاعب ليس صديقك");
                 return;
             }
-            for(int i = 0; i < own.friends.Count; i++){
+            for(int i = 0; i < own.friends.Count; i++)
+            {
                 if(own.friends[i].id == fId)
+                {
                     own.friends.RemoveAt(i);
                     break;
+                }
             }
-            if(Player.onlinePlayers.TryGetValue(fId, out Player friend)) {
-                if(friend.own.friends.Count > 0) {
-                    for(int i = 0; i < friend.own.friends.Count; i++) {
+            if(Player.onlinePlayers.TryGetValue(fId, out Player friend))
+            {
+                if(friend.own.friends.Count > 0)
+                {
+                    for(int i = 0; i < friend.own.friends.Count; i++)
+                    {
                         if(friend.own.friends[i].id == id)
+                        {
                             friend.own.friends.RemoveAt(i);
                             break;
+                        }
                     }
                 }
             }
             else Database.singleton.RemoveFriend(id, fId);
         }
-        [Server] public void RemoveFriend(uint fId) {
-            if(own.friends.Count < 1) return;
-            for(int i = 0; i < own.friends.Count; i++){
+        [Server] public void RemoveFriend(uint fId)
+        {
+            if(own.friends.Count < 1)
+                return;
+            for(int i = 0; i < own.friends.Count; i++)
+            {
                 if(own.friends[i].id == fId)
+                {
                     own.friends.RemoveAt(i);
                     break;
+                }
             }
         }
         [Server] public void SetFriendOnline(uint fId) {
@@ -2903,7 +2715,7 @@ namespace Game
                 NotifyPlayerOffline();
         }
         [Server] public void ChangeGender() {
-            gender = gender == Gender.Male ? Gender.Female : Gender.Male;
+            model.gender = model.gender == Gender.Male ? Gender.Female : Gender.Male;
         }
 
     #endregion
@@ -2965,22 +2777,5 @@ namespace Game
                 QuestsOnLocation(col);
         }
     #endregion   
-    }
-    [Serializable] public struct DailySignRewards
-    {
-        public int daysCount;
-        public List<ItemSlot> rewards;
-    }
-    [Serializable] public struct AutoMode
-    {
-        public bool on;
-        public int lastskill;
-        public float followDistance;
-        public bool collectGold;
-        public bool collectitems;
-        public double hpRecovery;
-        public double manaRecovery;
-        public string[] hpRecoveryPotions;
-        public string[] manaRecoveryPotions;
     }
 }

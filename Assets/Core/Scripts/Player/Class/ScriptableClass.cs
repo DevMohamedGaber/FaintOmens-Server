@@ -9,6 +9,9 @@ namespace Game
         public GameObject prefab;
         public SubclassInfo[] subs;
         public ItemSlot[] defaultEquipments;
+        public Quality quality;
+        public ushort[] initialAPs = new ushort[4];
+        public ScriptableQuality qualityData => ScriptableQuality.dict[(int)quality];
         //cash
         static Dictionary<PlayerClass, ScriptableClass> cache;
         public static Dictionary<PlayerClass, ScriptableClass> dict

@@ -19,7 +19,7 @@ namespace Game
             }
             if(Player.onlinePlayers.TryGetValue(sId, out Player target))
             {
-                if(target.gender == player.gender)
+                if(target.model.gender == player.model.gender)
                 {
                     player.Notify("Can't marry from same gender", "لا يمكنك الزواج من نفس النوع");
                     return;
@@ -97,7 +97,7 @@ namespace Game
             }
             if(Player.onlinePlayers.TryGetValue(player.own.marriageProposals[index].id, out Player target))
             {
-                if(target.gender == player.gender)
+                if(target.model.gender == player.model.gender)
                 {
                     player.Notify("Can't marry from same gender", "لا يمكنك الزواج من نفس النوع");
                     player.Log("[CmdAcceptMarriageProposal] same gender proposal from ID: " + target.id);
@@ -149,8 +149,8 @@ namespace Game
                     spouseLevel = (byte)player.level,
                     spouseOnline = true
                 };
-                string husband = player.gender == Gender.Male ? player.name : target.name;
-                string wife = player.gender == Gender.Female ? player.name : target.name;
+                string husband = player.model.gender == Gender.Male ? player.name : target.name;
+                string wife = player.model.gender == Gender.Female ? player.name : target.name;
                 foreach(Player p in Player.onlinePlayers.Values)
                 {
                     p.TargetAnnounceMarriage(husband, wife);

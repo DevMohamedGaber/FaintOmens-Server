@@ -3,6 +3,14 @@ namespace Game
 {
     public class WardrobeSystem
     {
+        public static async void SwitchVisibility(Player player)
+        {
+            if(!player.CanTakeAction())
+                return;
+            player.own.showClothing = !player.own.showClothing;
+            await player.RefreshModel();
+            player.NextAction(.5d);
+        }
         public static void Equip(Player player, ushort id)
         {
             if(!player.CanTakeAction())
@@ -15,9 +23,17 @@ namespace Game
                     player.Log($"[WardrobeSystem.OnEquip] not-active wardrobeId: {id}");
                     return;
                 }
-                WardrobeItem cloth = player.wardrobe[(int)itemData.category];
+
+                WardrobeItem cloth = player.own.clothing[(int)itemData.category];
                 cloth.id = id;
-                player.wardrobe[(int)itemData.category] = cloth;
+                player.own.clothing[(int)itemData.category] = cloth;
+
+                if(player.own.showClothing)
+                {
+                    PlayerModelData modelData = player.model;
+                    modelData.AddTo(itemData.category, id);
+                    player.model = modelData;
+                }
             }
             else
             {
@@ -30,26 +46,26 @@ namespace Game
         {
             if(!player.CanTakeAction())
                 return;
-            if(index < 0 || index > player.wardrobe.Count)
+            if(index < 0 || index > player.own.clothing.Count)
             {
                 player.Notify("Please select a cloth", "برجاء اختيار الزي");
                 player.Log($"[WardrobeSystem.Unequip] index: {index}");
                 return;
             }
-            if(!player.wardrobe[index].isUsed)
+            if(!player.own.clothing[index].isUsed)
             {
                 player.Notify("Please select a cloth", "برجاء اختيار الزي");
                 player.Log($"[WardrobeSystem.Unequip] index: {index} isn't used");
                 return;
             }
-            WardrobeItem wSlot = player.wardrobe[index];
+            WardrobeItem wSlot = player.own.clothing[index];
             if(!player.InventoryAdd(wSlot.GetInventoryItem(), 1))
             {
                 player.NotifyNotEnoughInventorySpace();
                 return;
             }
             wSlot.UnEquip();
-            player.wardrobe[index] = wSlot;
+            player.own.clothing[index] = wSlot;
             player.NextAction(.5f);
         }
         public static void Synthesize(Player player, int mainIndex, bool isEquiped, int otherIndex, int blessIndex)
@@ -79,13 +95,13 @@ namespace Game
             // if is equiped
             if(isEquiped)
             {
-                if(mainIndex < 0 || mainIndex > player.wardrobe.Count || !player.wardrobe[mainIndex].isUsed)
+                if(mainIndex < 0 || mainIndex > player.own.clothing.Count || !player.own.clothing[mainIndex].isUsed)
                 {
                     player.Notify("Select the main item to Synthesize");
-                    player.Log($"[WardrobeSystem.Synthesize](isEquiped) mainIndex = {mainIndex} isUsed = {player.wardrobe[mainIndex].isUsed}");
+                    player.Log($"[WardrobeSystem.Synthesize](isEquiped) mainIndex = {mainIndex} isUsed = {player.own.clothing[mainIndex].isUsed}");
                     return;
                 }
-                if(player.wardrobe[mainIndex].plus == Storage.data.wardrobe.max)
+                if(player.own.clothing[mainIndex].plus == Storage.data.wardrobe.max)
                 {
                     player.Notify("This clothing reached max enhancment", "الزي وصل لاعلي تحسين ممكن");
                     return;
@@ -93,26 +109,26 @@ namespace Game
                 if(player.own.inventory[otherIndex].item.data is ClothingItem otherData)
                 {
                     //check
-                    if(player.wardrobe[mainIndex].data.category != otherData.equipCategory)
+                    if(player.own.clothing[mainIndex].data.category != otherData.equipCategory)
                     {
                         player.Notify("Both clothing has to be of the same type", "يجب ان يكون كلا الزيين من نفس النوع");
                         player.Log($"[WardrobeSystem.Synthesize](isEquiped) mainIndex={mainIndex} otherIndex={otherIndex} both of diffrent categories");
                         return;
                     }
-                    if(player.wardrobe[mainIndex].plus != player.own.inventory[otherIndex].item.plus)
+                    if(player.own.clothing[mainIndex].plus != player.own.inventory[otherIndex].item.plus)
                     {
                         player.Notify("Both clothing has to have the same enhancment level", "يجب ان يكون كلا الزيين من نفس التطوير");
-                        player.Log($"[WardrobeSystem.Synthesize](isEquiped) mainIndex={mainIndex} otherIndex={otherIndex} both of diffrent plus<{player.wardrobe[mainIndex].plus}><{player.own.inventory[otherIndex].item.plus}>");
+                        player.Log($"[WardrobeSystem.Synthesize](isEquiped) mainIndex={mainIndex} otherIndex={otherIndex} both of diffrent plus<{player.own.clothing[mainIndex].plus}><{player.own.inventory[otherIndex].item.plus}>");
                         return;
                     }
-                    if(player.own.gold < Storage.data.wardrobe.cost[player.wardrobe[mainIndex].plus])
+                    if(player.own.gold < Storage.data.wardrobe.cost[player.own.clothing[mainIndex].plus])
                     {
                         player.NotifyNotEnoughGold();
                         return;
                     }
                     
                     // take the requirements
-                    player.UseGold(Storage.data.wardrobe.cost[player.wardrobe[mainIndex].plus]);
+                    player.UseGold(Storage.data.wardrobe.cost[player.own.clothing[mainIndex].plus]);
                     
                     if(blessIndex != -1)
                     {
@@ -126,12 +142,12 @@ namespace Game
                     player.own.inventory[otherIndex] = otherSlot;
 
                     // Modify according to the randomRate
-                    int successRate = 100 - (player.wardrobe[mainIndex].plus * 7) + (blessIndex != -1 ? 50 : 0);
+                    int successRate = 100 - (player.own.clothing[mainIndex].plus * 7) + (blessIndex != -1 ? 50 : 0);
                     if(Utils.random.Next(1, 100) <= successRate)
                     {
-                        WardrobeItem mainSlot = player.wardrobe[mainIndex];
+                        WardrobeItem mainSlot = player.own.clothing[mainIndex];
                         mainSlot.plus++;
-                        player.wardrobe[mainIndex] = mainSlot;
+                        player.own.clothing[mainIndex] = mainSlot;
                         player.NotifySuccess(NotifySuccessType.Wardrobe);
                     }
                     else player.NotifyFailure(NotifySuccessType.Wardrobe);

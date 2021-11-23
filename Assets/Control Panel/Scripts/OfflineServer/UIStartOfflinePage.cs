@@ -23,25 +23,32 @@ namespace Game.ControlPanel
         [SerializeField] Transform CreateServerTribes;
         [SerializeField] Dropdown CreateServerTribeMenuPrefab;
 
-        public void StartServer() {
-            if(TribeSystem.tribes.Count >= 2) {
+        public void StartServer()
+        {
+            if(TribeSystem.tribes.Count >= 2)
+            {
                 SetPort(Convert.ToUInt16(OfflineServerPort.text));
                 UIManager.data.initializer.StartServer();
                 Invoke(nameof(ShowHomePage), 2f);
                 OfflineServerInfoPanal.SetActive(false);
             }
         }
-        public void CreateServer() {
+        public void CreateServer()
+        {
             if(CreateServerNumber.text == "" || CreateServerName.text.Length < 3)
                 return;
             ushort number = Convert.ToUInt16(CreateServerNumber.text);
 
             List<byte> ids = new List<byte>();
             for(int i = 0; i < Convert.ToInt32(CreateServerTribesCount.text); i++)
+            {
                 ids.Add(Convert.ToByte(CreateServerTribes.GetChild(i).GetComponent<Dropdown>().value + 1));
+            }
             List<byte> duplicates = ids.FindDuplicates(tribe => tribe);
-            if(duplicates.Count < 1) {
-                if(number < 1 || CreateServerName.text.Length < 3 || ids.Count < 2) {
+            if(duplicates.Count < 1)
+            {
+                if(number < 1 || CreateServerName.text.Length < 3 || ids.Count < 2)
+                {
                     Debug.Log("Some thing wronge with the inputs");
                     return;
                 }
@@ -50,12 +57,18 @@ namespace Game.ControlPanel
                 TribeSystem.LoadTribes();
                 Invoke(nameof(UpdateData), 2f);
             }
-            else Debug.Log(duplicates.Count + " duplicates found in tribes selection.");
+            else
+            {
+                Debug.Log(duplicates.Count + " duplicates found in tribes selection.");
+            }
         }
-        public void UpdateCreateTribeFieldCount() {
+        public void UpdateCreateTribeFieldCount()
+        {
             int count = CreateServerTribesCount.text != "" ? Convert.ToInt32(CreateServerTribesCount.text) : 2;
             if(count >= 2)
+            {
                 UIUtils.BalancePrefabs(CreateServerTribeMenuPrefab.gameObject, count, CreateServerTribes);
+            }
         }
         void ShowHomePage() {
             UIManager.data.homePage.Show();

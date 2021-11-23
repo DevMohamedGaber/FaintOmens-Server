@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Mirror;
 using Game.Achievements;
-namespace Game.Components
+namespace Game
 {
     public class PlayerOwnData : NetworkBehaviourNonAlloc
     {
@@ -19,9 +19,14 @@ namespace Game.Components
         [SyncVar] public byte inventorySize;
         [SyncVar] public double nextRiskyActionTime;
         [SyncVar] public PlayerOccupation occupation = PlayerOccupation.None;
+        [SyncVar] public byte cityId;
+        [SyncVar] public bool showClothing = true;
+        [SyncVar] public PrivacyLevel privacy;
         public SyncListItemSlot inventory = new SyncListItemSlot();
         public SyncListItemSlot accessories = new SyncListItemSlot();
         public SyncListUShort wardrobe = new SyncListUShort();
+        public SyncListItemSlot equipment = new SyncListItemSlot();
+        public SyncListClothing clothing = new SyncListClothing();
     #endregion
     #region Attribute Points
         [Header("Attributes")]
@@ -48,14 +53,12 @@ namespace Game.Components
     #endregion
     #region Guild
         [Header("Guild")]
-        [SyncVar] public Guild guild;
         [SyncVar] public GuildRank guildRank;
-        [SyncVar] public uint guildContribution;
         public SyncListByte guildSkills = new SyncListByte() {0, 0, 0, 0, 0, 0};
     #endregion
     #region Tribe
         [Header("Tribe")]
-        [SyncVar] public Tribe tribe;
+        //[SyncVar] public Tribe tribe;
         [SyncVar] public TribeRank tribeRank;
         [SyncVar] public byte tribeQuests;
         [SyncVar] public uint tribeGoldContribution;

@@ -4,7 +4,6 @@ namespace Game
 {
     public class PetSystem
     {
-        static System.Random random = new System.Random();
         public static void Summon(Player player, ushort id)
         {
             if(!player.CanTakeAction())
@@ -15,30 +14,28 @@ namespace Game
                 player.Notify("Pet isn't activated", "المرافق غير مفعل");
                 return;
             }
-            if(player.activePet != null)
-            {
-                Unsummon(player);
-            }
+            // set as deployed
             PetInfo petinfo = player.own.pets[index];
-            GameObject go = GameObject.Instantiate(petinfo.data.prefab, player.petDestination, Quaternion.identity);
-            Pet pet = go.GetComponent<Pet>();
-            go.name = petinfo.data.prefab.name;
-
             petinfo.status = SummonableStatus.Deployed;
             player.own.pets[index] = petinfo;
 
-            pet.owner = player;
-            pet.dataIndex = index;
-            pet.tier = petinfo.tier;
-            pet.stars = petinfo.stars;
-            pet.health = pet.healthMax;
-            pet.mana = pet.manaMax;
-
-            NetworkServer.Spawn(go);
-            player.activePet = go.GetComponent<Pet>(); // set syncvar to go after spawning
-
-            player.health += pet.healthMax;
-            player.mana += pet.manaMax;
+            if(player.activePet != null)
+            {
+                // set as saved
+                PetInfo deployedPet = player.own.pets[player.activePet.dataIndex];
+                deployedPet.status = SummonableStatus.Saved;
+                player.own.pets[player.activePet.dataIndex] = deployedPet;
+            }
+            else
+            {
+                GameObject go = GameObject.Instantiate(Storage.data.pet.petPrefab, player.petDestination, Quaternion.identity);
+                NetworkServer.Spawn(go);
+                player.activePet = go.GetComponent<Pet>();
+                player.activePet.owner = player;
+            }
+            player.activePet.SetData(index);
+            //player.health += pet.healthMax;
+            //player.mana += pet.manaMax;
             player.NextAction();
         }
         public static void Unsummon(Player player)
@@ -139,6 +136,10 @@ namespace Game
             player.InventoryRemove(Storage.data.pet.upgradeItemId, neededItems);
             pet.tier++;
             player.own.pets[index] = pet;
+            if(player.activePet != null && player.activePet.data.id == id)
+            {
+                player.activePet.UpdateTier();
+            }
             player.NextAction();
         }
         public static void StarUp(Player player, ushort id) // upgrade stars
@@ -200,9 +201,9 @@ namespace Game
             slot.DecreaseAmount(1u);
             player.own.inventory[itemIndex] = slot;
             // if success
-            if(random.Next(-50, 120) > pet.potential)
+            if(Utils.random.Next(-50, 120) > pet.potential)
             {
-                byte inc = (byte)random.Next(1, 3);
+                byte inc = (byte)Utils.random.Next(1, 3);
 
                 pet.potential += inc;
                 if(pet.potential > Storage.data.pet.potentialMax)

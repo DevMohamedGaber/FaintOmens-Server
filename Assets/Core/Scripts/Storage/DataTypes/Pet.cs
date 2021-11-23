@@ -1,8 +1,10 @@
+using UnityEngine;
 namespace Game.StorageData
 {
     [System.Serializable]
     public struct Pet
     {
+        public GameObject petPrefab;
         public byte lvlCap;
         public ExponentialUInt expMax;
         public float expShare;
@@ -16,6 +18,7 @@ namespace Game.StorageData
         public uint[] starUpItemsCount;
         public uint[] upgradeItemsCount;
         public FeedItem[] feeds;
+        public float savedBonus;
         public FeedItem GetFeed(int id)
         {
             if(feeds.Length > 0)

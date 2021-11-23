@@ -32,7 +32,8 @@ namespace Game
         }
         public static async void Refresh()
         {
-            double StartOps = DateTime.Now.ToOADate();
+            var stopwatch = new System.Diagnostics.Stopwatch();
+            stopwatch.Start();
             List<Task> tasks = new List<Task>();
             // players
             tasks.Add(Task.Run(() => {
@@ -73,7 +74,8 @@ namespace Game
                 mountRankingLvl = Database.singleton.LoadRankingMountLvl();
             }));
             await Task.WhenAll(tasks);
-            Debug.Log("Ranking Refreshed in: " + ((double)DateTime.Now.ToOADate() - StartOps));
+            stopwatch.Stop();
+            Debug.Log($"Ranking Refreshed in: {stopwatch.ElapsedMilliseconds} ms");
         }
     }
 }

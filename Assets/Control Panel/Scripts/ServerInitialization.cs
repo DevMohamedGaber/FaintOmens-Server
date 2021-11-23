@@ -23,9 +23,7 @@ namespace Game.ControlPanel
         {
             manager = GameObject.Find("NetworkManager").GetComponent<NetworkManagerMMO>();
             manager.StartServer();
-            Task.Run(() => {
-                SpawnAllNetworkIdentities();
-            });
+            SpawnAllNetworkIdentities();
             LoadDBCashe();
             InitiateUpdaters();
             LoadAllScriptables();
@@ -55,12 +53,12 @@ namespace Game.ControlPanel
             Database.singleton.SetNextGuildId();
             Database.singleton.SetNextTeamId();
         }
-        async void SpawnAllNetworkIdentities()
+        void SpawnAllNetworkIdentities()
         {
             MonstersSpawnArea[] spawnPoints = GameObject.FindObjectsOfType<MonstersSpawnArea>();
-            int i;
-            if(spawnMonsterAreas && spawnPoints.Length > 0) {
-                for(i = 0; i < spawnPoints.Length; i++)
+            if(spawnMonsterAreas && spawnPoints.Length > 0)
+            {
+                for(int i = 0; i < spawnPoints.Length; i++)
                 {
                     spawnPoints[i].Init();
                 }

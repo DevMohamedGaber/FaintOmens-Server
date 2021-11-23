@@ -98,19 +98,19 @@ public class NetworkNavMeshAgent : NetworkBehaviourNonAlloc
         writer.WriteVector3(transform.position);
 
         // always send speed in case it's modified by something
-        writer.WriteSingle(agent.speed);
+        writer.WriteFloat(agent.speed);
 
         // click or wasd movement?
         // (no need to send everything all the time, saves bandwidth)
         bool hasPath = HasPath();
-        writer.WriteBoolean(hasPath);
+        writer.WriteBool(hasPath);
         if (hasPath)
         {
             // destination
             writer.WriteVector3(agent.destination);
 
             // always send stopping distance because monsters might stop early etc.
-            writer.WriteSingle(agent.stoppingDistance);
+            writer.WriteFloat(agent.stoppingDistance);
 
             // remember last serialized path so we do it again if it changed.
             // (first OnSerialize never seems to detect path yet for whatever
@@ -134,15 +134,15 @@ public class NetworkNavMeshAgent : NetworkBehaviourNonAlloc
     {
         // read position, speed and movement type
         Vector3 position = reader.ReadVector3();
-        agent.speed = reader.ReadSingle();
-        bool hasPath = reader.ReadBoolean();
+        agent.speed = reader.ReadFloat();
+        bool hasPath = reader.ReadBool();
 
         // click or wasd movement?
         if (hasPath)
         {
             // read destination and stopping distance
             Vector3 destination = reader.ReadVector3();
-            float stoppingDistance = reader.ReadSingle();
+            float stoppingDistance = reader.ReadFloat();
             //Debug.Log("OnDeserialize: click: " + destination);
 
             // try setting destination if on navmesh

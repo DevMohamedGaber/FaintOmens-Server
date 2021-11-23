@@ -9,13 +9,10 @@ namespace Game.Network.Messages
             public uint id;
             public string name;
             public PlayerClassData classInfo;
-            public Gender gender;
             public byte level;
             public byte tribeId;
             public byte avatar;
-            public bool showWardrobe;
-            public EquipmentPreview[] equipment;
-            public ushort[] wardrobe;
+            public PlayerModelData model;
         }
     }
 }

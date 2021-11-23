@@ -6,7 +6,6 @@ namespace Game
         Body,
         Weapon,
         Wings,
-        Spirit,
-        Aura
+        Soul
     }
 }

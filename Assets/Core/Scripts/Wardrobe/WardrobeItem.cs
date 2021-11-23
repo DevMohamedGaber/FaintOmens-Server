@@ -24,6 +24,11 @@ namespace Game
             this.id = id;
             this.plus = plus;
         }
+        public void Set(Game.DatabaseModels.Clothing clothing)
+        {
+            id = clothing.id;
+            plus = clothing.plus;
+        }
         public void UnEquip()
         {
             id = 0;

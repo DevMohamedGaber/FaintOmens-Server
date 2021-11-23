@@ -15,11 +15,11 @@ namespace Game
         {
             base.Use(player, inventoryIndex);
 
-            if(player.wardrobe[(int)equipCategory].isUsed)
+            if(player.own.clothing[(int)equipCategory].isUsed)
             {
                 Item oldItem = new Item {
-                    id = player.wardrobe[(int)equipCategory].data.itemId, 
-                    plus = player.wardrobe[(int)equipCategory].plus
+                    id = player.own.clothing[(int)equipCategory].data.itemId, 
+                    plus = player.own.clothing[(int)equipCategory].plus
                 };
                 if(!player.InventoryAdd(oldItem, 1))
                 {
@@ -30,10 +30,10 @@ namespace Game
             if(player.own.wardrobe.IndexOf(wardrobeId) == -1)
                 player.own.wardrobe.Add(wardrobeId);
             
-            WardrobeItem newItem = player.wardrobe[(int)equipCategory];
+            WardrobeItem newItem = player.own.clothing[(int)equipCategory];
             newItem.id = wardrobeId;
             newItem.plus = (byte)player.own.inventory[inventoryIndex].item.plus;
-            player.wardrobe[(int)equipCategory] = newItem;
+            player.own.clothing[(int)equipCategory] = newItem;
 
             ItemSlot slot = player.own.inventory[inventoryIndex];
             slot.DecreaseAmount(1);

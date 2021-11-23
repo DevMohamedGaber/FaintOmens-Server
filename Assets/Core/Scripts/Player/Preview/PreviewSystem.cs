@@ -31,7 +31,7 @@ namespace Game
                 id = player.id,
                 name = player.name,
                 level = (byte)player.level,
-                gender = player.gender,
+                gender = player.model.gender,
                 classInfo = player.classInfo,
                 tribeId = player.tribeId,
                 guildName = player.InGuild() ? player.guild.name : "",
@@ -50,12 +50,15 @@ namespace Game
                 critDmg = player.critDmg,
                 antiCrit = player.antiCrit,
                 untiStun = player.untiStunChance,
-                speed = player.speed
+                speed = player.speed,
+                model = player.model
             };
-            for(int i = 0; i < player.equipment.Count; i++)
+            for(int i = 0; i < player.own.equipment.Count; i++)
             {
-                if(player.equipment[i].amount > 0)
-                    result.equipments[i] = player.equipment[i].item;
+                if(player.own.equipment[i].amount > 0)
+                {
+                    result.equipments[i] = player.own.equipment[i].item;
+                }
             }
             return result;
         }

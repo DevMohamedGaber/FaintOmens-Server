@@ -10,7 +10,7 @@ namespace Game.DatabaseModels
         [Collation("NOCASE"), MaxLength(16)]
         public string name { get; set; }
         public PlayerClass classType { get; set; }
-        public byte classRank { get; set; }
+        public byte classRank { get; set; } = 0;
         public Gender gender { get; set; } = 0;
         public byte city { get; set; } = 0;
         public float x { get; set; } = 0;
@@ -65,7 +65,7 @@ namespace Game.DatabaseModels
         public ushort arena1v1LossesToday { get; set; } = 0;
         public ushort arena1v1Points { get; set; } = Storage.data.arena.dailyPoints;
         
-        public bool showWardrobe { get; set; } = true;
+        public bool showClothing { get; set; } = true;
         public bool shareExpWithPet { get; set; } = true;
         
         public byte suspiciousActivities { get; set; } = 0;

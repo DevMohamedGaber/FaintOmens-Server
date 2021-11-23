@@ -20,8 +20,8 @@ MonoBehaviour:
     UpgradeItems: []
     startQuest: {fileID: 0}
     hp:
-      multiplier: 0
-      baseValue: 1
+      multiplier: 1000
+      baseValue: 1.2
     mp:
       multiplier: 0
       baseValue: 1
@@ -53,3 +53,5 @@ MonoBehaviour:
       multiplier: 0
       baseValue: 1
   defaultEquipments: []
+  quality: 0
+  initialAPs: 0000000000000000
